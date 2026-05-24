@@ -1,19 +1,13 @@
 name: Site
 
-# Agon landing site (agon.latere.ai). Deploys on push to main when
-# site files change. The `v*` tag path is owned by release.yml
-# (goreleaser, the `agon` CLI) and is deliberately NOT a trigger
-# here — tagging the repo must not deploy the website.
+# Agon landing site (agon.latere.ai). Deploys on a version tag (v*),
+# matching the other product repos (topos, lux) — pushing commits to
+# main never deploys. A v* tag also triggers release.yml (the agon CLI
+# goreleaser), so cutting a tag releases both the CLI and the site.
 on:
   push:
-    branches: [main]
-    paths:
-      - "frontend/**"
-      - "internal/web/**"
-      - "cmd/agon-web/**"
-      - "Dockerfile.web"
-      - "deploy/prod/**"
-      - ".github/workflows/site.yml"
+    tags:
+      - "v*"
 
 concurrency:
   group: site-${{ github.ref }}
