@@ -6,6 +6,27 @@ import (
 	"testing"
 )
 
+// TestAssetCacheControl verifies path-scoped cache policy: hashed
+// /assets/* are immutable, fonts/static get stale-while-revalidate,
+// and SPA routes fall through (no cache) to the no-store index.
+func TestAssetCacheControl(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"/assets/app-abc123.js", immutableAssetCache},
+		{"/fonts/inter-400.woff2", staticAssetCache},
+		{"/static/og.svg", staticAssetCache},
+		{"/about", ""},
+		{"/", ""},
+	}
+	for _, tc := range cases {
+		if got := assetCacheControl(tc.path); got != tc.want {
+			t.Errorf("assetCacheControl(%q) = %q, want %q", tc.path, got, tc.want)
+		}
+	}
+}
+
 // With only dist/PLACEHOLDER embedded (no index.html — the state of
 // `go build ./...` and CI without the Bun stage), MountSPA must
 // report "not mounted" and SPAFallback must serve a clean 503 rather

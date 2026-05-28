@@ -11,6 +11,11 @@ import (
 	spaembed "latere.ai/x/agon/internal/web/spa"
 )
 
+const (
+	immutableAssetCache = "public, max-age=31536000, immutable"
+	staticAssetCache    = "public, max-age=604800, stale-while-revalidate=86400"
+)
+
 // MountSPA registers static-asset handlers (immutable cache for
 // /assets/, plain serving for /fonts/ and any built top-level file)
 // on mux. It returns false when no real frontend is embedded (only
@@ -32,8 +37,8 @@ func MountSPA(mux *http.ServeMux) bool {
 			serveIndex(w, dist)
 			return
 		}
-		if strings.HasPrefix(p, "/assets/") {
-			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		if cacheControl := assetCacheControl(p); cacheControl != "" {
+			w.Header().Set("Cache-Control", cacheControl)
 			http.FileServer(files).ServeHTTP(w, r)
 			return
 		}
@@ -51,6 +56,20 @@ func MountSPA(mux *http.ServeMux) bool {
 
 	slog.Info("spa: mounted")
 	return true
+}
+
+// assetCacheControl returns the Cache-Control value for a static
+// asset path, or "" for paths that should fall through to the SPA
+// index (served no-store). Hashed /assets/* are immutable; fonts and
+// other static top-level files get a long stale-while-revalidate.
+func assetCacheControl(p string) string {
+	if strings.HasPrefix(p, "/assets/") {
+		return immutableAssetCache
+	}
+	if strings.HasPrefix(p, "/fonts/") || strings.HasPrefix(p, "/static/") {
+		return staticAssetCache
+	}
+	return ""
 }
 
 // SPAFallback serves index.html for any unmatched GET route so
