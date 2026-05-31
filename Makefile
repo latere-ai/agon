@@ -141,6 +141,7 @@ deploy: preflight-deploy kubeconfig
 		echo "$$out"; \
 		sha=$$(printf '%s' "$$out" | shasum -a 256 | cut -d' ' -f1 | cut -c1-12); \
 		printf '| %s | %s | %s |\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(VERSION)" "$$sha" >> DEPLOY_LOG.md
+	VERSION=$(VERSION) bash tools/release/publish.sh
 
 preflight-release:
 	@command -v $(DOCKER) >/dev/null 2>&1 \

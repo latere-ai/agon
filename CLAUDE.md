@@ -9,9 +9,9 @@ make release-minor    # bump minor
 make release-major    # bump major
 make release VERSION=v0.0.2   # override
 
-make deploy           # defaults to tag at HEAD (set by release-patch)
+make deploy           # defaults to tag at HEAD; runs smoke + publishes GitHub release (web)
 make deploy VERSION=v0.0.2    # deploy a specific tag
-git push origin <tag> # publish the tag — also triggers goreleaser for the CLI
+# Pushing the tag during deploy ALSO triggers goreleaser for the CLI binaries.
 ```
 
 Needs on PATH: `gh`, `podman` (or `docker`), `op`, `doctl`, `kubectl`.
@@ -20,3 +20,4 @@ Needs on PATH: `gh`, `podman` (or `docker`), `op`, `doctl`, `kubectl`.
 - DO PAT comes from 1Password at `op://LatereAI/Digital Ocean Credentials/PAT`. Token is passed via `DIGITALOCEAN_ACCESS_TOKEN` env var, never written to disk.
 - Builds `linux/amd64` by default (cluster nodes are amd64). Override with `PLATFORM=...`.
 - If a release fails partway, the bump tag is rolled back automatically.
+- `make deploy` runs `tools/smoke/release.sh` against prod (checks `/`, `/healthz`, `/readyz`), then `tools/release/publish.sh` to push the git tag to origin and create a GitHub release for the web side. Pushing the tag also triggers `release.yml` (goreleaser) to publish the CLI binaries — this is intentional, one tag = one ship of both.
