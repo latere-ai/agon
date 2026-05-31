@@ -13,8 +13,13 @@ NAMESPACE  := latere
 CLUSTER    := latere-k8s
 OP_DO_PAT  := op://LatereAI/Digital Ocean Credentials/PAT
 
+# docker is the default; podman is detected as a drop-in. Override with
+# DOCKER=... if both are installed and you want a specific one.
+DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null || echo docker)
+
 .PHONY: all pre lint vet test build install clean probe release-check coverage e2e \
-        release release-patch release-minor release-major deploy ghcr-login kubeconfig
+        release release-patch release-minor release-major deploy ghcr-login kubeconfig \
+        preflight-release preflight-deploy
 
 all: pre test build
 
@@ -77,6 +82,7 @@ release-check: pre vet test build
 release-patch: BUMP := patch
 release-minor: BUMP := minor
 release-major: BUMP := major
+release-patch release-minor release-major: preflight-release
 release-patch release-minor release-major:
 	@latest=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
 	if [ -z "$$latest" ]; then \
@@ -93,22 +99,23 @@ release-patch release-minor release-major:
 	fi; \
 	echo "bump: $${latest:-<none>} → $$next"; \
 	git tag -a "$$next" -m "release $$next"
-	@$(MAKE) release VERSION="$$(git tag -l 'v*' --sort=-v:refname | head -1)"
+	@tag=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
+	$(MAKE) release VERSION="$$tag" || { \
+		echo "release: failed; rolling back tag $$tag" >&2; \
+		git tag -d "$$tag"; \
+		exit 1; \
+	}
 
 # Build the agon-web image with the explicit version tag and push to ghcr.io.
 # Dockerfile.web builds the frontend inside a bun stage, so no local
 # frontend-build prerequisite is needed.
-release: ghcr-login
-	@if docker manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1; then \
-		echo "release: $(IMAGE):$(VERSION) already in ghcr.io, skipping push"; \
-	else \
-		docker build -f Dockerfile.web --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) . && \
-		docker push $(IMAGE):$(VERSION); \
-	fi
+release: preflight-release ghcr-login
+	$(DOCKER) build -f Dockerfile.web --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) .
+	$(DOCKER) push $(IMAGE):$(VERSION)
 
 # Apply manifests, roll the new image, wait for readiness, append to DEPLOY_LOG.md.
-deploy: kubeconfig
-	@docker manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1 \
+deploy: preflight-deploy kubeconfig
+	@$(DOCKER) manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1 \
 		|| { echo "deploy: $(IMAGE):$(VERSION) not in ghcr.io, run 'make release VERSION=$(VERSION)' first" >&2; exit 1; }
 	kubectl apply -f deploy/prod/
 	kubectl -n $(NAMESPACE) set image deployment/$(DEPLOYMENT) $(DEPLOYMENT)=$(IMAGE):$(VERSION)
@@ -117,10 +124,20 @@ deploy: kubeconfig
 		sha=$$(printf '%s' "$$out" | shasum -a 256 | cut -d' ' -f1 | cut -c1-12); \
 		printf '| %s | %s | %s |\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(VERSION)" "$$sha" >> DEPLOY_LOG.md
 
+preflight-release:
+	@command -v $(DOCKER) >/dev/null 2>&1 \
+		|| { echo "missing: docker or podman (install OrbStack, Docker Desktop, colima, or podman)" >&2; exit 1; }
+	@command -v gh >/dev/null 2>&1 \
+		|| { echo "missing: gh (brew install gh)" >&2; exit 1; }
+
+preflight-deploy: preflight-release
+	@for cmd in kubectl op doctl; do \
+		command -v $$cmd >/dev/null 2>&1 \
+			|| { echo "missing: $$cmd (deploy needs kubectl + op + doctl)" >&2; exit 1; }; \
+	done
+
 ghcr-login:
-	@if ! grep -q '"ghcr.io"' $$HOME/.docker/config.json 2>/dev/null; then \
-		gh auth token | docker login ghcr.io -u $$USER --password-stdin; \
-	fi
+	@gh auth token | $(DOCKER) login ghcr.io -u $$USER --password-stdin
 
 kubeconfig:
 	@if [ "$$(kubectl config current-context 2>/dev/null)" != "$(CLUSTER)" ]; then \
