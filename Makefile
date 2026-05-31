@@ -2,12 +2,19 @@ SHELL := /bin/bash
 BIN   := bin/agon
 PKG   := ./cmd/agon
 
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo sha-$$(git rev-parse --short HEAD))
 COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE    ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-.PHONY: all pre lint vet test build install clean probe release-check coverage e2e
+IMAGE      := ghcr.io/latere-ai/agon-web
+DEPLOYMENT := agon-web
+NAMESPACE  := latere
+CLUSTER    := latere-k8s
+OP_DO_PAT  := op://LatereAI/Digital Ocean Credentials/PAT
+
+.PHONY: all pre lint vet test build install clean probe release-check coverage e2e \
+        release deploy ghcr-login kubeconfig
 
 all: pre test build
 
@@ -61,3 +68,36 @@ coverage: pre
 release-check: pre vet test build
 	@./$(BIN) --version
 	@echo "release-check: OK"
+
+# Build the agon-web image with the explicit version tag and push to ghcr.io.
+# Dockerfile.web builds the frontend inside a bun stage, so no local
+# frontend-build prerequisite is needed.
+release: ghcr-login
+	@if docker manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1; then \
+		echo "release: $(IMAGE):$(VERSION) already in ghcr.io, skipping push"; \
+	else \
+		docker build -f Dockerfile.web --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) . && \
+		docker push $(IMAGE):$(VERSION); \
+	fi
+
+# Apply manifests, roll the new image, wait for readiness, append to DEPLOY_LOG.md.
+deploy: kubeconfig
+	@docker manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1 \
+		|| { echo "deploy: $(IMAGE):$(VERSION) not in ghcr.io, run 'make release VERSION=$(VERSION)' first" >&2; exit 1; }
+	kubectl apply -f deploy/prod/
+	kubectl -n $(NAMESPACE) set image deployment/$(DEPLOYMENT) $(DEPLOYMENT)=$(IMAGE):$(VERSION)
+	@out=$$(kubectl -n $(NAMESPACE) rollout status deployment/$(DEPLOYMENT) --timeout=180s); \
+		echo "$$out"; \
+		sha=$$(printf '%s' "$$out" | shasum -a 256 | cut -d' ' -f1 | cut -c1-12); \
+		printf '| %s | %s | %s |\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(VERSION)" "$$sha" >> DEPLOY_LOG.md
+
+ghcr-login:
+	@if ! grep -q '"ghcr.io"' $$HOME/.docker/config.json 2>/dev/null; then \
+		gh auth token | docker login ghcr.io -u $$USER --password-stdin; \
+	fi
+
+kubeconfig:
+	@if [ "$$(kubectl config current-context 2>/dev/null)" != "$(CLUSTER)" ]; then \
+		op read "$(OP_DO_PAT)" | doctl auth init -t - && \
+		doctl kubernetes cluster kubeconfig save $(CLUSTER) --expiry-seconds 3600; \
+	fi
