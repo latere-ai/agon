@@ -152,36 +152,6 @@ Five load-bearing pieces (full design in
   only" by critic system prompt and `codex --sandbox read-only`, not
   OS isolation; strict per-fork sandbox dirs are v1.
 
-## Web site
-
-`agon.latere.ai` is built and deployed locally from this repo, not GitHub
-Actions. CI runs lint, vet, and tests only.
-
-```sh
-# Bump the latest v* tag, create an annotated tag at HEAD, build, push.
-make release-patch    # v0.0.1 → v0.0.2
-make release-minor    # v0.0.1 → v0.1.0
-make release-major    # v0.0.1 → v1.0.0
-
-# Or pin the version yourself.
-make release VERSION=v0.0.2
-
-# Apply manifests, roll the new image, append to DEPLOY_LOG.md.
-# VERSION defaults to the tag at HEAD (just created by make release-*).
-make deploy
-```
-
-Push the git tag to origin when ready: `git push origin v0.0.2`.
-
-`make release` uses `gh auth token` for ghcr.io. `make deploy` pulls a fresh
-`latere-k8s` kubeconfig with a 1Password-sourced DO PAT
-(`op://LatereAI/Digital Ocean Credentials/PAT`); requires `op`, `doctl`, and
-`kubectl` on PATH. See `DEPLOY_LOG.md` for the rollout history.
-
-Cutting a `v*` tag still triggers `release.yml` (goreleaser) and ships the
-agon CLI binaries to GitHub Releases. The web site no longer auto-deploys on
-tag — make deploy is explicit.
-
 ## Related work
 
 - [agents-byzantine-tolerance](https://github.com/changkun/agents-byzantine-tolerance)

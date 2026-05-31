@@ -13,3 +13,4 @@ node_modules/
 # Go-embedded SPA: keep the directory and placeholder, ignore built assets
 internal/web/spa/dist/*
 !internal/web/spa/dist/PLACEHOLDER
+release-evidence/
