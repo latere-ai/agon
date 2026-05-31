@@ -115,8 +115,21 @@ release: preflight-release ghcr-login
 
 # Apply manifests, roll the new image, wait for readiness, append to DEPLOY_LOG.md.
 deploy: preflight-deploy kubeconfig
-	@$(DOCKER) manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1 \
-		|| { echo "deploy: $(IMAGE):$(VERSION) not in ghcr.io, run 'make release VERSION=$(VERSION)' first" >&2; exit 1; }
+	@$(DOCKER) manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1 || { \
+		echo "deploy: $(IMAGE):$(VERSION) not in ghcr.io" >&2; \
+		case "$(VERSION)" in \
+			sha-*) \
+				latest=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
+				echo "hint: HEAD is not on a v* tag (VERSION fell back to $(VERSION))." >&2; \
+				echo "      run 'make release-patch' to bump + push + tag HEAD, then 'make deploy'." >&2; \
+				echo "      or 'make deploy VERSION=$${latest:-<no v* tags yet>}' to deploy the last tag." >&2; \
+				;; \
+			*) \
+				echo "hint: this version was never pushed; run 'make release VERSION=$(VERSION)' first." >&2; \
+				;; \
+		esac; \
+		exit 1; \
+	}
 	kubectl apply -f deploy/prod/
 	kubectl -n $(NAMESPACE) set image deployment/$(DEPLOYMENT) $(DEPLOYMENT)=$(IMAGE):$(VERSION)
 	@out=$$(kubectl -n $(NAMESPACE) rollout status deployment/$(DEPLOYMENT) --timeout=180s); \
