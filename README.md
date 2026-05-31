@@ -158,12 +158,20 @@ Five load-bearing pieces (full design in
 Actions. CI runs lint, vet, and tests only.
 
 ```sh
-# Build and push ghcr.io/latere-ai/agon-web:<version>.
+# Bump the latest v* tag, create an annotated tag at HEAD, build, push.
+make release-patch    # v0.0.1 → v0.0.2
+make release-minor    # v0.0.1 → v0.1.0
+make release-major    # v0.0.1 → v1.0.0
+
+# Or pin the version yourself.
 make release VERSION=v0.0.2
 
 # Apply manifests, roll the new image, append to DEPLOY_LOG.md.
-make deploy VERSION=v0.0.2
+# VERSION defaults to the tag at HEAD (just created by make release-*).
+make deploy
 ```
+
+Push the git tag to origin when ready: `git push origin v0.0.2`.
 
 `make release` uses `gh auth token` for ghcr.io. `make deploy` pulls a fresh
 `latere-k8s` kubeconfig with a 1Password-sourced DO PAT

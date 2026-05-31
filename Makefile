@@ -14,7 +14,7 @@ CLUSTER    := latere-k8s
 OP_DO_PAT  := op://LatereAI/Digital Ocean Credentials/PAT
 
 .PHONY: all pre lint vet test build install clean probe release-check coverage e2e \
-        release deploy ghcr-login kubeconfig
+        release release-patch release-minor release-major deploy ghcr-login kubeconfig
 
 all: pre test build
 
@@ -68,6 +68,32 @@ coverage: pre
 release-check: pre vet test build
 	@./$(BIN) --version
 	@echo "release-check: OK"
+
+# Bump to the next semver from the latest v* tag, create an annotated tag at
+# HEAD, then run `make release` with it. Push the tag to origin yourself
+# (`git push origin <tag>`) when ready. Pre-release suffixes (e.g. -rc1) are
+# stripped before incrementing. Split into two recipe lines so `make -n` does
+# not actually create the tag (GNU make recurses into $(MAKE) under -n).
+release-patch: BUMP := patch
+release-minor: BUMP := minor
+release-major: BUMP := major
+release-patch release-minor release-major:
+	@latest=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
+	if [ -z "$$latest" ]; then \
+		next="v0.1.0"; \
+	else \
+		ver=$${latest#v}; \
+		major=$${ver%%.*}; rest=$${ver#*.}; \
+		minor=$${rest%%.*}; patch=$${rest#*.}; patch=$${patch%%-*}; \
+		case "$(BUMP)" in \
+			major) next="v$$((major+1)).0.0" ;; \
+			minor) next="v$$major.$$((minor+1)).0" ;; \
+			patch) next="v$$major.$$minor.$$((patch+1))" ;; \
+		esac; \
+	fi; \
+	echo "bump: $${latest:-<none>} → $$next"; \
+	git tag -a "$$next" -m "release $$next"
+	@$(MAKE) release VERSION="$$(git tag -l 'v*' --sort=-v:refname | head -1)"
 
 # Build the agon-web image with the explicit version tag and push to ghcr.io.
 # Dockerfile.web builds the frontend inside a bun stage, so no local
