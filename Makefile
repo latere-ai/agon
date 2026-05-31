@@ -141,6 +141,6 @@ ghcr-login:
 
 kubeconfig:
 	@if [ "$$(kubectl config current-context 2>/dev/null)" != "$(CLUSTER)" ]; then \
-		op read "$(OP_DO_PAT)" | tr -d '\n\r' | doctl auth init -t - && \
-		doctl kubernetes cluster kubeconfig save $(CLUSTER) --expiry-seconds 3600; \
+		DIGITALOCEAN_ACCESS_TOKEN=$$(op read "$(OP_DO_PAT)") \
+			doctl kubernetes cluster kubeconfig save $(CLUSTER) --expiry-seconds 3600; \
 	fi
