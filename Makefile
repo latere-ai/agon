@@ -136,7 +136,8 @@ deploy: preflight-deploy kubeconfig
 	}
 	kubectl apply -f deploy/prod/
 	kubectl -n $(NAMESPACE) set image deployment/$(DEPLOYMENT) $(DEPLOYMENT)=$(IMAGE):$(VERSION)
-	@out=$$(kubectl -n $(NAMESPACE) rollout status deployment/$(DEPLOYMENT) --timeout=180s); \
+	@set -e; \
+		out=$$(kubectl -n $(NAMESPACE) rollout status deployment/$(DEPLOYMENT) --timeout=180s); \
 		echo "$$out"; \
 		sha=$$(printf '%s' "$$out" | shasum -a 256 | cut -d' ' -f1 | cut -c1-12); \
 		printf '| %s | %s | %s |\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(VERSION)" "$$sha" >> DEPLOY_LOG.md
