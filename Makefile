@@ -17,6 +17,10 @@ OP_DO_PAT  := op://LatereAI/Digital Ocean Credentials/PAT
 # DOCKER=... if both are installed and you want a specific one.
 DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null || echo docker)
 
+# Cluster nodes are linux/amd64. Build for that explicitly so Apple Silicon
+# laptops don't push arm64 images that pods refuse with "exec format error".
+PLATFORM ?= linux/amd64
+
 .PHONY: all pre lint vet test build install clean probe release-check coverage e2e \
         release release-patch release-minor release-major deploy ghcr-login kubeconfig \
         preflight-release preflight-deploy
@@ -110,7 +114,7 @@ release-patch release-minor release-major:
 # Dockerfile.web builds the frontend inside a bun stage, so no local
 # frontend-build prerequisite is needed.
 release: preflight-release ghcr-login
-	$(DOCKER) build -f Dockerfile.web --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) .
+	$(DOCKER) build --platform $(PLATFORM) -f Dockerfile.web --build-arg VERSION=$(VERSION) -t $(IMAGE):$(VERSION) .
 	$(DOCKER) push $(IMAGE):$(VERSION)
 
 # Apply manifests, roll the new image, wait for readiness, append to DEPLOY_LOG.md.
