@@ -104,11 +104,14 @@ release-patch release-minor release-major:
 	echo "bump: $${latest:-<none>} → $$next"; \
 	git tag -a "$$next" -m "release $$next"
 	@tag=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
-	$(MAKE) release     VERSION="$$tag" && \
-	$(MAKE) deploy      VERSION="$$tag" && \
-	$(MAKE) release-cli VERSION="$$tag" || { \
-		echo "release-patch: pipeline failed; rolling back tag $$tag" >&2; \
+	{ $(MAKE) release VERSION="$$tag" && $(MAKE) deploy VERSION="$$tag"; } || { \
+		echo "release-patch: release or deploy failed before prod changed; rolling back tag $$tag" >&2; \
 		git tag -d "$$tag"; \
+		exit 1; \
+	}; \
+	$(MAKE) release-cli VERSION="$$tag" || { \
+		echo "release-patch: release-cli failed AFTER prod shipped (image + k8s + gh release at $$tag)" >&2; \
+		echo "  the bump tag is kept; re-run 'make release-cli VERSION=$$tag' once goreleaser is fixed" >&2; \
 		exit 1; \
 	}
 

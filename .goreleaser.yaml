@@ -65,9 +65,11 @@ release:
   prerelease: auto
   # `make deploy` calls tools/release/publish.sh, which creates the GitHub
   # release with the web smoke evidence body BEFORE goreleaser runs.
-  # use_existing_release tells goreleaser to attach CLI artifacts to that
-  # release instead of failing because it already exists.
-  use_existing_release: true
+  # mode: keep-existing tells goreleaser to leave that body alone and just
+  # attach CLI artifacts to the release.
+  # replace_existing_artifacts makes re-runs idempotent.
+  mode: keep-existing
+  replace_existing_artifacts: true
   github:
     owner: latere-ai
     name: agon
