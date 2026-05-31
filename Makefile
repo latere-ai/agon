@@ -104,8 +104,10 @@ release-patch release-minor release-major:
 	echo "bump: $${latest:-<none>} → $$next"; \
 	git tag -a "$$next" -m "release $$next"
 	@tag=$$(git tag -l 'v*' --sort=-v:refname | head -1); \
-	$(MAKE) release VERSION="$$tag" || { \
-		echo "release: failed; rolling back tag $$tag" >&2; \
+	$(MAKE) release     VERSION="$$tag" && \
+	$(MAKE) deploy      VERSION="$$tag" && \
+	$(MAKE) release-cli VERSION="$$tag" || { \
+		echo "release-patch: pipeline failed; rolling back tag $$tag" >&2; \
 		git tag -d "$$tag"; \
 		exit 1; \
 	}
@@ -158,6 +160,8 @@ preflight-release:
 		|| { echo "missing: docker or podman (install OrbStack, Docker Desktop, colima, or podman)" >&2; exit 1; }
 	@command -v gh >/dev/null 2>&1 \
 		|| { echo "missing: gh (brew install gh)" >&2; exit 1; }
+	@command -v goreleaser >/dev/null 2>&1 \
+		|| { echo "missing: goreleaser (brew install goreleaser) — release-patch chains CLI binary release" >&2; exit 1; }
 
 preflight-deploy: preflight-release
 	@for cmd in kubectl op doctl; do \
