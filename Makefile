@@ -142,11 +142,12 @@ deploy: preflight-deploy kubeconfig
 		sha=$$(printf '%s' "$$out" | shasum -a 256 | cut -d' ' -f1 | cut -c1-12); \
 		printf '| %s | %s | %s |\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(VERSION)" "$$sha" >> DEPLOY_LOG.md
 	VERSION=$(VERSION) bash tools/release/publish.sh
-	$(MAKE) release-cli VERSION=$(VERSION)
 
-# Run goreleaser locally to build the CLI binary archives and upload them to
-# the GitHub release that publish.sh just created. Requires `goreleaser` on
-# PATH (`brew install goreleaser`) and a gh-authenticated session.
+# Build and upload CLI binary archives to the existing GitHub release.
+# Independent of `make deploy` — run only when you actually want to ship a new
+# CLI version. Requires goreleaser (`brew install goreleaser`); the
+# .goreleaser.yaml has `use_existing_release: true` so this attaches assets to
+# the release that publish.sh already created.
 release-cli:
 	@command -v goreleaser >/dev/null 2>&1 \
 		|| { echo "missing: goreleaser (brew install goreleaser)" >&2; exit 1; }
@@ -157,8 +158,6 @@ preflight-release:
 		|| { echo "missing: docker or podman (install OrbStack, Docker Desktop, colima, or podman)" >&2; exit 1; }
 	@command -v gh >/dev/null 2>&1 \
 		|| { echo "missing: gh (brew install gh)" >&2; exit 1; }
-	@command -v goreleaser >/dev/null 2>&1 \
-		|| { echo "missing: goreleaser (brew install goreleaser) — needed by make deploy → make release-cli to ship CLI binaries" >&2; exit 1; }
 
 preflight-deploy: preflight-release
 	@for cmd in kubectl op doctl; do \
