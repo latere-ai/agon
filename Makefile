@@ -161,7 +161,10 @@ preflight-release:
 	@command -v gh >/dev/null 2>&1 \
 		|| { echo "missing: gh (brew install gh)" >&2; exit 1; }
 	@command -v goreleaser >/dev/null 2>&1 \
-		|| { echo "missing: goreleaser (brew install goreleaser) — release-patch chains CLI binary release" >&2; exit 1; }
+		|| { echo "missing: goreleaser (brew install goreleaser)" >&2; \
+		     echo "    needed to build the precompiled agon CLI binaries (linux/darwin × amd64/arm64)" >&2; \
+		     echo "    that ship to GitHub releases for install.sh consumers" >&2; \
+		     exit 1; }
 
 preflight-deploy: preflight-release
 	@for cmd in kubectl op doctl; do \
