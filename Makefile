@@ -157,6 +157,8 @@ preflight-release:
 		|| { echo "missing: docker or podman (install OrbStack, Docker Desktop, colima, or podman)" >&2; exit 1; }
 	@command -v gh >/dev/null 2>&1 \
 		|| { echo "missing: gh (brew install gh)" >&2; exit 1; }
+	@command -v goreleaser >/dev/null 2>&1 \
+		|| { echo "missing: goreleaser (brew install goreleaser) — needed by make deploy → make release-cli to ship CLI binaries" >&2; exit 1; }
 
 preflight-deploy: preflight-release
 	@for cmd in kubectl op doctl; do \
