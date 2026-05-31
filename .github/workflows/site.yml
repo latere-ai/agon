@@ -4,6 +4,12 @@ name: Site
 # matching the other product repos (topos, lux) — pushing commits to
 # main never deploys. A v* tag also triggers release.yml (the agon CLI
 # goreleaser), so cutting a tag releases both the CLI and the site.
+#
+# After the site rolls, this workflow smokes /, /healthz, /readyz and
+# creates/edits the GitHub release with the smoke evidence. release.yml
+# (goreleaser) attaches CLI binary tarballs to the same release. The
+# two can race; whichever runs first creates the release, the other
+# edits/attaches.
 on:
   push:
     tags:
@@ -47,11 +53,19 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
     environment:
       name: production
       url: https://agon.latere.ai
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26"
+          check-latest: true
+          cache: false
       - uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DO_TOKEN }}
@@ -63,3 +77,57 @@ jobs:
           kubectl -n latere set image deployment/agon-web \
             agon-web=${{ needs.build.outputs.image }}
           kubectl -n latere rollout status deployment/agon-web --timeout=180s
+
+      - name: Smoke production release
+        env:
+          TAG: ${{ github.ref_name }}
+          COMMIT: ${{ github.sha }}
+          BUILD_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          DEPLOY_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          BASE_URL=https://agon.latere.ai \
+            TAG="$TAG" \
+            COMMIT="$COMMIT" \
+            BUILD_URL="$BUILD_URL" \
+            DEPLOY_URL="$DEPLOY_URL" \
+            OUTPUT_MD=release-evidence/smoke.md \
+            tools/smoke/release.sh
+          cat release-evidence/smoke.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-evidence-${{ github.ref_name }}
+          path: release-evidence/
+          if-no-files-found: error
+
+      - name: Publish release evidence
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          go build -o release-evidence/evidence-body ./tools/release
+          evidence=release-evidence/smoke.md
+          body=release-evidence/release-body.md
+          prefix=release-evidence/prefix.md
+          if gh release view "$TAG" --json body --jq .body > "$prefix" 2>/dev/null; then
+            release-evidence/evidence-body \
+              --prefix "$prefix" --evidence "$evidence" --out "$body"
+            gh release edit "$TAG" --notes-file "$body"
+          else
+            gh api "repos/${{ github.repository }}/releases/generate-notes" \
+              -f tag_name="$TAG" \
+              -f target_commitish="$SHA" \
+              --jq .body > "$prefix" || true
+            release-evidence/evidence-body \
+              --prefix "$prefix" --evidence "$evidence" --out "$body"
+            # No --target: the tag already exists at $SHA (this workflow
+            # was triggered by its push).
+            gh release create "$TAG" \
+              --title "Agon $TAG" \
+              --notes-file "$body"
+          fi
