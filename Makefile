@@ -115,7 +115,7 @@ release: preflight-release ghcr-login
 
 # Apply manifests, roll the new image, wait for readiness, append to DEPLOY_LOG.md.
 deploy: preflight-deploy kubeconfig
-	@$(DOCKER) manifest inspect $(IMAGE):$(VERSION) >/dev/null 2>&1 || { \
+	@$(DOCKER) pull $(IMAGE):$(VERSION) >/dev/null 2>&1 || { \
 		echo "deploy: $(IMAGE):$(VERSION) not in ghcr.io" >&2; \
 		case "$(VERSION)" in \
 			sha-*) \
