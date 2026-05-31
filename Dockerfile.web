@@ -1,16 +1,22 @@
-# Agon landing site (agon.latere.ai). Separate from the `agon`
-# CLI release (goreleaser): this image is built only by
-# .github/workflows/site.yml. Bun-built vite-ssg dist is embedded
-# into the cmd/agon-web Go binary, served from a distroless image.
+# Agon landing site (agon.latere.ai). Built by `make release` locally
+# (no longer by GH Actions). Separate from the `agon` CLI release
+# (goreleaser).
+#
+# Both build stages pin --platform=$BUILDPLATFORM so they run native on the
+# host (avoids the bun x86_64-under-qemu SIGILL crash on Apple Silicon).
+# The frontend dist is arch-neutral static files; the Go binary is
+# cross-compiled to TARGETOS/TARGETARCH so the final amd64 image runs
+# correctly on cluster nodes.
 
-FROM oven/bun:1-alpine AS frontend
+FROM --platform=$BUILDPLATFORM oven/bun:1-alpine AS frontend
 WORKDIR /src
 COPY frontend/package.json frontend/bun.lock ./
 RUN bun install --frozen-lockfile
 COPY frontend/ ./
 RUN bun run build
 
-FROM golang:1.26-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+ARG TARGETOS TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
@@ -18,7 +24,7 @@ COPY . .
 RUN rm -rf internal/web/spa/dist
 COPY --from=frontend /src/dist internal/web/spa/dist/
 ARG VERSION=dev
-RUN CGO_ENABLED=0 go build -trimpath \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath \
     -ldflags "-s -w -X main.version=${VERSION}" \
     -o /agon-web ./cmd/agon-web
 
