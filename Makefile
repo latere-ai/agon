@@ -22,7 +22,7 @@ DOCKER ?= $(shell command -v docker 2>/dev/null || command -v podman 2>/dev/null
 PLATFORM ?= linux/amd64
 
 .PHONY: all pre lint vet test build install clean probe release-check coverage e2e \
-        release release-patch release-minor release-major deploy ghcr-login kubeconfig \
+        release release-cli release-patch release-minor release-major deploy ghcr-login kubeconfig \
         preflight-release preflight-deploy
 
 all: pre test build
@@ -142,6 +142,15 @@ deploy: preflight-deploy kubeconfig
 		sha=$$(printf '%s' "$$out" | shasum -a 256 | cut -d' ' -f1 | cut -c1-12); \
 		printf '| %s | %s | %s |\n' "$$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(VERSION)" "$$sha" >> DEPLOY_LOG.md
 	VERSION=$(VERSION) bash tools/release/publish.sh
+	$(MAKE) release-cli VERSION=$(VERSION)
+
+# Run goreleaser locally to build the CLI binary archives and upload them to
+# the GitHub release that publish.sh just created. Requires `goreleaser` on
+# PATH (`brew install goreleaser`) and a gh-authenticated session.
+release-cli:
+	@command -v goreleaser >/dev/null 2>&1 \
+		|| { echo "missing: goreleaser (brew install goreleaser)" >&2; exit 1; }
+	GITHUB_TOKEN=$$(gh auth token) goreleaser release --clean
 
 preflight-release:
 	@command -v $(DOCKER) >/dev/null 2>&1 \
