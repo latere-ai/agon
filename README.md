@@ -131,7 +131,7 @@ Five load-bearing pieces (full design in
 - **Forked agon, no agon content in root.** Each critic gets its
   own claude fork via `--fork-session`. agon runs as a separate
   process and only ever touches the live session through that fork,
-  writing results to disk — the user's root transcript never sees an
+  writing results to disk. The user's root transcript never sees an
   agon turn.
 - **Verbatim channel.** Critic output reaches the proposer-clone as a
   plain user turn pointing at a file: `Some comments at @<path>.
