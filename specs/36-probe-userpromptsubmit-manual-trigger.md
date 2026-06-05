@@ -100,7 +100,7 @@ trigger in [01-overview.md](01-overview.md) §"Manual invocation".
 No `UserPromptSubmit`/slash mechanism is implemented.
 
 **Follow-on (2026-05-16, same day):** the question "is the auto Stop
-hook even wanted?" was then answered **no** — the Stop hook was
+hook even wanted?" was then answered **no** - the Stop hook was
 removed *entirely*. agon has no auto path at all now; the CLI/alias
 is the *only* trigger. Specs [24](24-stop-hook.md), [28](28-probe-no-output-stop-hook-outcome.md),
 [33](33-install-hook-smoke.md) retired; [01](01-overview.md) /

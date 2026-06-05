@@ -54,7 +54,7 @@ the ones before it.
 
 ## Triggering + verification
 
-- [24 Stop hook](24-stop-hook.md) — ❌ RETIRED (hook removed; see [36](36-probe-userpromptsubmit-manual-trigger.md))
+- [24 Stop hook](24-stop-hook.md) - ❌ RETIRED (hook removed; see [36](36-probe-userpromptsubmit-manual-trigger.md))
 - [25 Probes](25-probes.md)
 - [26 Tests](26-tests.md)
 - [27 Release process and GA gates](27-release.md)
@@ -65,12 +65,12 @@ These specs were added during the v0.0.1 release cut. Each one closes
 a numbered GA gate from spec 27 and writes its outcome into
 [`release-notes-v0.0.1.md`](../release-notes-v0.0.1.md).
 
-- [28 G4 probe: no-output Stop hook](28-probe-no-output-stop-hook-outcome.md) — ❌ RETIRED (hook removed)
+- [28 G4 probe: no-output Stop hook](28-probe-no-output-stop-hook-outcome.md) - ❌ RETIRED (hook removed)
 - [29 G5 probe: signal latency](29-probe-signal-latency-outcome.md) - SIGINT to exit < 5s
 - [30 G6 probe: trivial-diff fast path](30-probe-trivial-diff-perf-outcome.md) - hook returns < 200ms median
 - [31 G7 probe: interactive stdout](31-probe-interactive-stdout-outcome.md) - non-blocking, manual
 - [32 G13 real-e2e suite](32-real-e2e-suite.md) - e2e/real test behind real_e2e build tag
-- [33 G15 install-hook smoke](33-install-hook-smoke.md) — ❌ RETIRED (install-hook removed)
+- [33 G15 install-hook smoke](33-install-hook-smoke.md) - ❌ RETIRED (install-hook removed)
 - [34 G16 real-claude end-to-end](34-real-claude-end-to-end-smoke.md) - agon runs with real claude+codex
 - [35 Release-notes channel](35-release-notes-channel.md) - decides where probe/gate outcomes live
 - [36 Probe: UserPromptSubmit manual trigger](36-probe-userpromptsubmit-manual-trigger.md) - FAIL; manual trigger can't be byte-identical

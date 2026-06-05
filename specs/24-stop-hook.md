@@ -1,7 +1,7 @@
 # Spec 24 - Stop hook script and install
 
 > **Status: ❌ RETIRED (2026-05-16).** The Stop hook was removed
-> entirely — agon is now a deliberate CLI (terminal / alias), no
+> entirely - agon is now a deliberate CLI (terminal / alias), no
 > auto-trigger, no recursion guard, no `--hook-mode`. This spec is
 > kept as historical record only. Rationale: [36](36-probe-userpromptsubmit-manual-trigger.md).
 

@@ -64,7 +64,7 @@ verdict: PASS | FAIL    # PASS iff max_per_fork_wall ≤ 300s and a summary file
 
 ## Acceptance criteria
 
-- [x] One real-claude session ran to completion; recording captured. (Run via `bin/agon --session-id <real-id>` against a fixture with a 46-line diff — the only trigger path.)
+- [x] One real-claude session ran to completion; recording captured. (Run via `bin/agon --session-id <real-id>` against a fixture with a 46-line diff - the only trigger path.)
 - [x] `verdict: PASS` and `max_per_fork_wall ≤ 300s`. Measured: 181 s.
 - [x] ~~[27-release.md](27-release.md) G16 cites the recording.~~ *(retracted: G16 no longer exists as a release blocker.)*
 - [x] Disposition updated to allow SKIP when `claude --print` is unauthenticated (HTTP 401), with the escape-hatch wording above. Now superseded by the PASS recording, but the escape hatch stays for future maintainers on hosts without working auth.

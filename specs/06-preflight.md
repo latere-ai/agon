@@ -1,7 +1,7 @@
 # Spec 06 - Pre-flight checks
 
 > **Status: ✅ implemented.** (2026-05-16: the recursion-guard check
-> was removed with the Stop hook — agon is a deliberate CLI, nothing
+> was removed with the Stop hook - agon is a deliberate CLI, nothing
 > re-enters it. This doc is pruned to that design; checks renumbered.
 > See [36](36-probe-userpromptsubmit-manual-trigger.md).)
 > Implementation spec for `agon`. See [01-overview.md](01-overview.md) §"CLI surface" notes for design intent.

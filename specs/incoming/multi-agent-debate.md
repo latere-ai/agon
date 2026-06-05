@@ -1,5 +1,5 @@
 ---
-title: Multi-Agent Debate — Adversarial Deliberation for Ideation and Signal Triage
+title: Multi-Agent Debate - Adversarial Deliberation for Ideation and Signal Triage
 status: drafted
 depends_on:
   - specs/shared/agent-abstraction.md
@@ -12,21 +12,21 @@ author: changkun
 dispatched_task_id: null
 ---
 
-# Multi-Agent Debate — Adversarial Deliberation for Ideation and Signal Triage
+# Multi-Agent Debate - Adversarial Deliberation for Ideation and Signal Triage
 
 ## Problem Statement
 
-The multi-agent consensus spec addresses *verification* — parallel, independent agents vote on a binary outcome (pass/fail, accept/reject). But two important activities demand something richer than a vote: they need *deliberation*.
+The multi-agent consensus spec addresses *verification* - parallel, independent agents vote on a binary outcome (pass/fail, accept/reject). But two important activities demand something richer than a vote: they need *deliberation*.
 
 ### 1. Single-perspective ideation
 
-The brainstorm agent (`RunIdeation`) runs a single provider in a single pass. It proposes ideas, self-critiques, and outputs the top 3. The self-critique is inherently limited — the same model that generates an idea is unlikely to find its own blind spots. A second model from a different provider would challenge assumptions, propose alternatives, and surface risks the first model's reasoning pattern systematically misses.
+The brainstorm agent (`RunIdeation`) runs a single provider in a single pass. It proposes ideas, self-critiques, and outputs the top 3. The self-critique is inherently limited - the same model that generates an idea is unlikely to find its own blind spots. A second model from a different provider would challenge assumptions, propose alternatives, and surface risks the first model's reasoning pattern systematically misses.
 
 Today's ideation also has no mechanism for *building on* another agent's ideas. Agent A might propose "add caching" while Agent B (if it ran independently) might propose "add a CDN." Neither alone would discover the synthesis: "add edge caching with CDN fallback." Debate enables this emergent combination.
 
 ### 2. Single-perspective signal triage
 
-The telemetry spec (dependency) introduces a signal-to-code feedback loop: runtime anomalies are detected, correlated to tasks, and auto-dispatched as fix tasks. But the triage decision — *what does this signal mean?* and *what should we do about it?* — is made by a single agent (or by threshold rules). This is fragile:
+The telemetry spec (dependency) introduces a signal-to-code feedback loop: runtime anomalies are detected, correlated to tasks, and auto-dispatched as fix tasks. But the triage decision - *what does this signal mean?* and *what should we do about it?* - is made by a single agent (or by threshold rules). This is fragile:
 
 - A latency spike could be a code regression, a database issue, or a traffic burst. One agent's diagnosis depends on its training biases.
 - An error rate increase could warrant a hotfix, a rollback, or just monitoring. The action depends on judgment that benefits from multiple perspectives.
@@ -47,11 +47,11 @@ Consensus (from the sibling spec) is a *voting protocol*: agents independently p
 
 ## Design Goals
 
-- **G1 — Structured multi-round debate.** Agents take turns responding to each other's arguments. Each round adds new information or refines prior positions. The protocol has a defined termination condition.
-- **G2 — Cross-provider by default.** Each debate participant should be a different provider (Claude, Codex, Gemini) to maximize perspective diversity. Same-provider debate is allowed but provides less value.
-- **G3 — Two concrete applications.** The spec must deliver working debate protocols for (a) ideation and (b) telemetry signal triage. The framework should be general enough for future applications.
-- **G4 — Observable.** Every debate round is logged as a task event. The UI shows the debate transcript so users can understand how the conclusion was reached.
-- **G5 — Bounded cost.** Debate has a hard round limit and an optional cost ceiling. Runaway debates are impossible.
+- **G1 - Structured multi-round debate.** Agents take turns responding to each other's arguments. Each round adds new information or refines prior positions. The protocol has a defined termination condition.
+- **G2 - Cross-provider by default.** Each debate participant should be a different provider (Claude, Codex, Gemini) to maximize perspective diversity. Same-provider debate is allowed but provides less value.
+- **G3 - Two concrete applications.** The spec must deliver working debate protocols for (a) ideation and (b) telemetry signal triage. The framework should be general enough for future applications.
+- **G4 - Observable.** Every debate round is logged as a task event. The UI shows the debate transcript so users can understand how the conclusion was reached.
+- **G5 - Bounded cost.** Debate has a hard round limit and an optional cost ceiling. Runaway debates are impossible.
 
 ## Design
 
@@ -174,10 +174,10 @@ const (
 
 Each debate round constructs a prompt that includes:
 
-1. **Debate context** — the topic, activity-specific data (workspace signals, telemetry data, etc.)
-2. **Participant role** — optional role assignment (proposer, critic, synthesizer)
-3. **Transcript** — all prior rounds' responses from all participants
-4. **Round instructions** — phase-specific guidance (opening: state your position; rebuttal: respond to others; closing: state your final position)
+1. **Debate context** - the topic, activity-specific data (workspace signals, telemetry data, etc.)
+2. **Participant role** - optional role assignment (proposer, critic, synthesizer)
+3. **Transcript** - all prior rounds' responses from all participants
+4. **Round instructions** - phase-specific guidance (opening: state your position; rebuttal: respond to others; closing: state your final position)
 
 ```
 You are participating in a structured debate with other AI agents.
@@ -222,11 +222,11 @@ func (r *Runner) runDebate(ctx context.Context, taskID uuid.UUID, config DebateC
         StartedAt:    time.Now(),
     }
 
-    // Round 0: Opening — all participants respond to the seed topic
+    // Round 0: Opening - all participants respond to the seed topic
     opening := r.runDebateRound(ctx, debate, DebatePhaseOpening)
     debate.Rounds = append(debate.Rounds, opening)
 
-    // Rounds 1..N-1: Rebuttal — each sees the full transcript so far
+    // Rounds 1..N-1: Rebuttal - each sees the full transcript so far
     for round := 1; round < config.MaxRounds-1; round++ {
         if r.debateCostExceeded(debate, config.MaxCostUSD) {
             break
@@ -240,7 +240,7 @@ func (r *Runner) runDebate(ctx context.Context, taskID uuid.UUID, config DebateC
         }
     }
 
-    // Final round: Closing — participants state final positions
+    // Final round: Closing - participants state final positions
     closing := r.runDebateRound(ctx, debate, DebatePhaseClosing)
     debate.Rounds = append(debate.Rounds, closing)
 
@@ -310,7 +310,7 @@ The debate replaces `RunIdeation` when `WALLFACER_IDEATION_MODE=debate`:
 | `single` | Current behavior: one agent, self-critique | 1× |
 | `debate` | Multi-agent debate with configurable rounds | N×R (N providers × R rounds) |
 
-When `mode=debate`, `runIdeationTask` calls `runDebate()` instead of `RunIdeation()`. The output format is the same (`[]IdeateResult`) — the debate produces ideas compatible with the existing backlog-task-creation flow.
+When `mode=debate`, `runIdeationTask` calls `runDebate()` instead of `RunIdeation()`. The output format is the same (`[]IdeateResult`) - the debate produces ideas compatible with the existing backlog-task-creation flow.
 
 #### Debate Ideation Prompt Template
 
@@ -458,7 +458,7 @@ When a task involves a debate, the task detail view includes a "Debate" tab:
 - **Timeline view:** Each round shown as a horizontal band. Within each band, participant responses shown as adjacent cards (like a chat with multiple speakers).
 - **Participant colors:** Each provider gets a distinct color. Provider avatars (from pixel-agents) shown next to each response.
 - **Convergence indicator:** A visual meter showing how much agreement exists. Updates after each round.
-- **Final verdict:** Highlighted at the bottom — what was agreed, what was disputed, and how it was resolved.
+- **Final verdict:** Highlighted at the bottom - what was agreed, what was disputed, and how it was resolved.
 
 ### Ideation Debate View
 
@@ -483,7 +483,7 @@ For triage debates, the transcript panel shows:
 | `GET` | `/api/tasks/{id}/debate` | Get debate state and transcript |
 | `GET` | `/api/tasks/{id}/debate/stream` | SSE: live debate round updates |
 
-No explicit start/cancel endpoints — debates are started implicitly by the runner when ideation or triage mode is `debate`, and cancelled via the existing task cancel flow.
+No explicit start/cancel endpoints - debates are started implicitly by the runner when ideation or triage mode is `debate`, and cancelled via the existing task cancel flow.
 
 ### Config
 
@@ -491,7 +491,7 @@ No explicit start/cancel endpoints — debates are started implicitly by the run
 
 ## Implementation Plan
 
-### Phase 1 — Debate Engine
+### Phase 1 - Debate Engine
 
 Core orchestrator logic, independent of any specific application.
 
@@ -509,20 +509,20 @@ Core orchestrator logic, independent of any specific application.
 
 **Depends on:** Agent abstraction Phase 1 (role descriptors for clean multi-provider invocation).
 
-### Phase 2 — Ideation Debate
+### Phase 2 - Ideation Debate
 
 Wire the debate engine into the ideation flow.
 
 1. Add `debate-ideation.tmpl` prompt template with workspace signals, existing tasks, rejected history.
 2. Modify `runIdeationTask()` to dispatch to `runDebate()` when `WALLFACER_IDEATION_MODE=debate`.
-3. Implement idea extraction from debate transcript — parse `IdeateResult[]` from each participant's closing response, then merge/rank.
+3. Implement idea extraction from debate transcript - parse `IdeateResult[]` from each participant's closing response, then merge/rank.
 4. Idea ranking: ideas endorsed by multiple participants rank highest; ideas challenged and not defended are dropped.
-5. Output format remains `[]IdeateResult` — compatible with existing backlog-task-creation flow.
+5. Output format remains `[]IdeateResult` - compatible with existing backlog-task-creation flow.
 6. Add ideation debate UI (transcript panel with idea tracking).
 
 **Depends on:** Phase 1.
 
-### Phase 3 — Triage Debate
+### Phase 3 - Triage Debate
 
 Wire the debate engine into the telemetry signal loop.
 
@@ -534,11 +534,11 @@ Wire the debate engine into the telemetry signal loop.
 
 **Depends on:** Phase 1, telemetry spec (signal detection and anomaly model).
 
-### Phase 4 — Refinements
+### Phase 4 - Refinements
 
 1. Add round-robin and random turn orders (Phase 1 starts with simultaneous only).
 2. Add arbiter escalation for diverged debates (reuses arbiter from consensus spec).
-3. Add debate history — track which debate patterns lead to better outcomes over time (feeds back into debate config tuning).
+3. Add debate history - track which debate patterns lead to better outcomes over time (feeds back into debate config tuning).
 4. Cost analytics for debates vs single-agent approaches.
 
 ## Cost Analysis
@@ -566,7 +566,7 @@ Mitigations:
 | **Agent Abstraction** | Debate uses `runAgent()` role descriptors to invoke participants. Each debate turn is a single-turn agent invocation with a different provider. |
 | **Multi-Agent Consensus** | Consensus is for binary decisions (pass/fail). Debate is for open-ended analysis. A debate's closing round can feed into a consensus vote if needed. The arbiter and escalation mechanisms are shared. |
 | **Telemetry & Observability** | Triage debate consumes anomaly data from the telemetry system. The debate conclusion drives the auto-dispatch action. |
-| **Spec Coordination** | Future application: debate could be used for spec review — multiple agents critique a draft spec before it's accepted. Not in scope for this spec. |
+| **Spec Coordination** | Future application: debate could be used for spec review - multiple agents critique a draft spec before it's accepted. Not in scope for this spec. |
 
 ## Open Questions
 
@@ -585,7 +585,7 @@ Mitigations:
 ## Deferred Work
 
 - **Debate for code review / implementation.** Iterative review cycles between implementation agent and review agent. Architecturally similar but requires shared write access to worktrees (fundamentally different from read-only debate).
-- **Debate visualization with graph view.** Map idea evolution across rounds as a directed graph — which ideas were combined, split, or killed. Rich UI feature, not needed for v1.
+- **Debate visualization with graph view.** Map idea evolution across rounds as a directed graph - which ideas were combined, split, or killed. Rich UI feature, not needed for v1.
 - **Adaptive debate length.** Dynamically adjust max rounds based on observed convergence rate rather than a fixed ceiling.
 - **Provider-weighted voting.** Weight final votes by provider track record for the specific task domain.
-- **Debate templates.** User-defined debate structures (custom roles, custom phase instructions, domain-specific evaluation criteria) — a debate DSL.
+- **Debate templates.** User-defined debate structures (custom roles, custom phase instructions, domain-specific evaluation criteria) - a debate DSL.

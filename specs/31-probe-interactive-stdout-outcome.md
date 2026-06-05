@@ -1,6 +1,6 @@
 # Spec 31 - Probe G7 outcome: interactive stdout rendering
 
-> **Status: ✅ implemented** (G7 SKIP — non-blocking; recorded reason. README and spec 01 wording stays at the conservative "stdout best-effort" form. The release-blocker gate this spec closed was retracted in the 2026-05-08 simplification of [27](27-release.md); the probe is preserved in `scripts/probes/` for opt-in re-runs.)
+> **Status: ✅ implemented** (G7 SKIP - non-blocking; recorded reason. README and spec 01 wording stays at the conservative "stdout best-effort" form. The release-blocker gate this spec closed was retracted in the 2026-05-08 simplification of [27](27-release.md); the probe is preserved in `scripts/probes/` for opt-in re-runs.)
 > Implementation spec for `agon`. See [25-probes.md](25-probes.md) for the probe and [24-stop-hook.md](24-stop-hook.md), [01-overview.md](01-overview.md) for the wording it informs.
 
 **Depends on:** [24](24-stop-hook.md), [25](25-probes.md).
