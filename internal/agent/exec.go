@@ -15,6 +15,14 @@ import (
 	"time"
 )
 
+// maxScanLine caps the per-line token size for every stdout scanner in
+// this package. claude/codex stream-json tool results occasionally
+// exceed bufio.Scanner's default 64 KB line limit; 8 MB covers the
+// largest observed lines. All scanner sites share this so the streaming
+// path, the buffered claude parser, and StreamJSON cannot drift apart
+// (a smaller cap there would reject a line the other two accepted).
+const maxScanLine = 8 * 1024 * 1024
+
 // Run is one subprocess invocation.
 //
 // When OnStdoutLine is non-nil, Exec switches to a streaming pipe:
@@ -106,9 +114,7 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 	}
 
 	// Streaming path: pipe stdout, fan each line to the callback while
-	// also buffering the full stdout for the buffered parser. The
-	// scanner buffer is bumped to 8 MB because claude stream-json tool
-	// results occasionally exceed the default 64 KB line limit.
+	// also buffering the full stdout for the buffered parser.
 	pipe, perr := cmd.StdoutPipe()
 	if perr != nil {
 		return Result{Duration: time.Since(start)}, perr
@@ -118,7 +124,7 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 	}
 	var stdoutBuf bytes.Buffer
 	sc := bufio.NewScanner(pipe)
-	sc.Buffer(make([]byte, 0, 64*1024), 8*1024*1024)
+	sc.Buffer(make([]byte, 0, 64*1024), maxScanLine)
 	for sc.Scan() {
 		line := sc.Bytes()
 		stdoutBuf.Write(line)
@@ -197,7 +203,7 @@ func DecodeJSONLine(line []byte, dst any) error {
 // skipped silently.
 func StreamJSON(stdout io.Reader, visit func(json.RawMessage) error) error {
 	sc := bufio.NewScanner(stdout)
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	sc.Buffer(make([]byte, 0, 64*1024), maxScanLine)
 	for sc.Scan() {
 		line := bytes.TrimSpace(sc.Bytes())
 		if len(line) == 0 {
