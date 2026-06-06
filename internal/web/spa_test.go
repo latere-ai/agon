@@ -4,7 +4,42 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"testing/fstest"
 )
+
+// TestSPAFallbackServesTopLevelFiles pins the bug fix: top-level static
+// files (favicon.svg, robots.txt, ...) live at the dist root and match
+// none of MountSPA's prefix routes, so they reach the GET / fallback.
+// The fallback must serve the real file, not the HTML index, while an
+// unmatched deep link must still fall back to index.html.
+func TestSPAFallbackServesTopLevelFiles(t *testing.T) {
+	dist := fstest.MapFS{
+		"index.html":  {Data: []byte("<html>app</html>")},
+		"favicon.svg": {Data: []byte("<svg>icon</svg>")},
+		"robots.txt":  {Data: []byte("User-agent: *\n")},
+	}
+	h := fallbackHandler(dist)
+
+	cases := []struct {
+		path     string
+		wantBody string
+	}{
+		{"/favicon.svg", "<svg>icon</svg>"},
+		{"/robots.txt", "User-agent: *\n"},
+		{"/some/deep/route", "<html>app</html>"}, // unknown route -> index
+		{"/", "<html>app</html>"},                // root -> index
+	}
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		h(rec, httptest.NewRequest(http.MethodGet, tc.path, nil))
+		if rec.Code != http.StatusOK {
+			t.Errorf("GET %s = %d, want 200", tc.path, rec.Code)
+		}
+		if got := rec.Body.String(); got != tc.wantBody {
+			t.Errorf("GET %s body = %q, want %q", tc.path, got, tc.wantBody)
+		}
+	}
+}
 
 // TestAssetCacheControl verifies path-scoped cache policy: hashed
 // /assets/* are immutable, fonts/static get stale-while-revalidate,

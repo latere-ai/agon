@@ -72,25 +72,48 @@ func assetCacheControl(p string) string {
 	return ""
 }
 
-// SPAFallback serves index.html for any unmatched GET route so
-// client-side routing works on deep links.
+// SPAFallback handles every GET route not claimed by a more specific
+// pattern. The dist root holds top-level static files (favicon.svg,
+// og.svg, robots.txt, sitemap.xml) that match none of MountSPA's
+// /assets//fonts//static/ prefixes, so they land here: it serves an
+// existing file as itself and falls back to index.html for everything
+// else, so client-side routing still works on deep links.
 func SPAFallback(mux *http.ServeMux) {
 	dist, err := fs.Sub(spaembed.FS, "dist")
 	if err != nil {
-		mux.HandleFunc("GET /", func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, "frontend not built", http.StatusServiceUnavailable)
-		})
+		mux.HandleFunc("GET /", notBuilt)
 		return
 	}
 	if _, err := fs.Stat(dist, "index.html"); err != nil {
-		mux.HandleFunc("GET /", func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, "frontend not built", http.StatusServiceUnavailable)
-		})
+		mux.HandleFunc("GET /", notBuilt)
 		return
 	}
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /", fallbackHandler(dist))
+}
+
+func notBuilt(w http.ResponseWriter, _ *http.Request) {
+	http.Error(w, "frontend not built", http.StatusServiceUnavailable)
+}
+
+// fallbackHandler serves the cleaned request path from dist when it
+// resolves to an existing regular file, otherwise serves index.html.
+func fallbackHandler(dist fs.FS) http.HandlerFunc {
+	files := http.FS(dist)
+	return func(w http.ResponseWriter, r *http.Request) {
+		clean := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
+		if clean != "" && clean != "." {
+			if info, ferr := fs.Stat(dist, clean); ferr == nil && !info.IsDir() {
+				if cc := assetCacheControl(r.URL.Path); cc != "" {
+					w.Header().Set("Cache-Control", cc)
+				} else {
+					w.Header().Set("Cache-Control", staticAssetCache)
+				}
+				http.FileServer(files).ServeHTTP(w, r)
+				return
+			}
+		}
 		serveIndex(w, dist)
-	})
+	}
 }
 
 func serveIndex(w http.ResponseWriter, dist fs.FS) {
