@@ -73,12 +73,17 @@ func Compute(ctx context.Context, s DiffSpec) (*Diff, error) {
 			}
 			synth, err := runGit(ctx, s.Cwd, []string{"diff", "--no-color", "--no-index", "--", "/dev/null", p})
 			if err != nil {
-				// git diff --no-index exits 1 when files differ; not an error here.
+				// git diff --no-index exits 1 (with output) when the files
+				// differ; that is the expected case for an untracked file,
+				// not a failure. Any other error (e.g. git could not read
+				// the file) is genuine and must propagate, rather than be
+				// swallowed and undercount ChangedLines.
 				var ge *ErrGit
 				if errors.As(err, &ge) && len(synth) > 0 {
 					patch.WriteString(synth)
 					continue
 				}
+				return nil, err
 			}
 			patch.WriteString(synth)
 		}

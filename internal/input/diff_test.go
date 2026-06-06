@@ -49,6 +49,27 @@ func TestComputeWithUntracked(t *testing.T) {
 	}
 }
 
+// TestComputeUntrackedGitFailurePropagates pins that a genuine git
+// failure on an untracked file (here: git cannot read a 0000 file that
+// ls-files still reports) propagates instead of being swallowed, which
+// would drop the file and undercount ChangedLines, wrongly gating a run
+// as a trivial diff.
+func TestComputeUntrackedGitFailurePropagates(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root bypasses file-permission checks")
+	}
+	dir := t.TempDir()
+	gitInit(t, dir)
+	bad := filepath.Join(dir, "secret.txt")
+	if err := os.WriteFile(bad, []byte("secret\n"), 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(bad, 0o644) })
+	if _, err := Compute(context.Background(), DiffSpec{From: "HEAD", To: ".", Cwd: dir}); err == nil {
+		t.Fatal("expected error when git cannot read an untracked file, got nil")
+	}
+}
+
 func TestTrivialGate(t *testing.T) {
 	d := &Diff{ChangedLines: 3}
 	if !Trivial(d, 10) {
