@@ -3,10 +3,24 @@ package summary
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"latere.ai/x/agon/internal/ledger"
 	"latere.ai/x/agon/internal/round"
 )
+
+// TestOneLineRuneBoundary pins that oneLine truncates on a rune
+// boundary: byte-slicing multibyte UTF-8 (the repo ships zh content)
+// would split a rune and emit invalid UTF-8 into summary.md.
+func TestOneLineRuneBoundary(t *testing.T) {
+	got := oneLine(strings.Repeat("世", 300))
+	if !utf8.ValidString(got) {
+		t.Errorf("oneLine produced invalid UTF-8: %q", got)
+	}
+	if want := strings.Repeat("世", 200) + "..."; got != want {
+		t.Errorf("oneLine truncation: got %d runes, want 200 runes + ellipsis", utf8.RuneCountInString(got))
+	}
+}
 
 func TestDecideClean(t *testing.T) {
 	d := Decide(&round.Summary{Termination: round.TermSteadyState, Unresolved: 0})

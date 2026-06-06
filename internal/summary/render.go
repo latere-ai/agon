@@ -143,8 +143,11 @@ func writeResolved(b *strings.Builder, r ledger.Record) {
 
 func oneLine(s string) string {
 	s = strings.ReplaceAll(s, "\n", " ")
-	if len(s) > 200 {
-		s = s[:200] + "..."
+	// Truncate on a rune boundary; slicing bytes can split a multibyte
+	// UTF-8 rune (the repo ships zh content) and emit mojibake into the
+	// rendered summary.md.
+	if r := []rune(s); len(r) > 200 {
+		s = string(r[:200]) + "..."
 	}
 	return strings.TrimSpace(s)
 }
