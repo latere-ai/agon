@@ -65,6 +65,22 @@ func TestReadTranscriptNoUserTurn(t *testing.T) {
 	}
 }
 
+// TestReadTranscriptAllMalformed pins that a transcript whose every
+// non-empty line is unparseable reports ErrTranscriptMalformed, not
+// ErrNoUserTurn. Before the fix the >5% bad-line check was gated on
+// LineCount>0, so an all-bad file (LineCount==0) skipped it entirely.
+func TestReadTranscriptAllMalformed(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "abc.jsonl")
+	if err := os.WriteFile(p, []byte("not json\n{also not json\n<garbage>\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ReadTranscript(p)
+	if !errors.Is(err, ErrTranscriptMalformed) {
+		t.Errorf("got %v, want ErrTranscriptMalformed", err)
+	}
+}
+
 func TestReadTranscriptHappy(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "abc.jsonl")

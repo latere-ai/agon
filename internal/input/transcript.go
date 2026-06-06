@@ -159,7 +159,11 @@ func ReadTranscript(path string) (*Transcript, error) {
 	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
 		return nil, err
 	}
-	if t.LineCount > 0 && float64(bad)/float64(t.LineCount+bad) > 0.05 {
+	// Ratio is against every non-empty line, including bad ones, and is
+	// not gated on LineCount>0: a transcript where every line is
+	// unparseable (LineCount==0, bad>0) is malformed, not a missing user
+	// turn. Empty files (total==0) still fall through to ErrNoUserTurn.
+	if total := t.LineCount + bad; total > 0 && float64(bad)/float64(total) > 0.05 {
 		return nil, ErrTranscriptMalformed
 	}
 	if first == nil {
