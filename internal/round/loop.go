@@ -134,7 +134,9 @@ func (e *Engine) startHeartbeat(start time.Time, prefix string) func() {
 		return func() {}
 	}
 	done := make(chan struct{})
+	finished := make(chan struct{})
 	go func() {
+		defer close(finished)
 		t := time.NewTicker(tick)
 		defer t.Stop()
 		for {
@@ -146,7 +148,11 @@ func (e *Engine) startHeartbeat(start time.Time, prefix string) func() {
 			}
 		}
 	}()
-	return func() { close(done) }
+	// stop() blocks until the goroutine has returned, so a tick that is
+	// mid-write to e.Progress completes before the main loop's next write
+	// to the same writer. Without the wait the two writes race on a bare
+	// os.Stderr.
+	return func() { close(done); <-finished }
 }
 
 func (e *Engine) progf(format string, args ...any) {

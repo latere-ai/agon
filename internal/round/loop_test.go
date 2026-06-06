@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -504,6 +505,44 @@ func TestEngineHeartbeatDisabledWhenNegativeInterval(t *testing.T) {
 	}
 	if strings.Contains(buf.String(), "still running") {
 		t.Errorf("negative interval should disable heartbeat, but found 'still running' in:\n%s", buf.String())
+	}
+}
+
+// overlapWriter flags whether two Write calls are ever in flight at the
+// same time. Each Write holds the "active" count high for a fixed window
+// so a concurrent write reliably overlaps it.
+type overlapWriter struct {
+	active int32
+	raced  int32
+}
+
+func (w *overlapWriter) Write(p []byte) (int, error) {
+	if atomic.AddInt32(&w.active, 1) > 1 {
+		atomic.StoreInt32(&w.raced, 1)
+	}
+	time.Sleep(50 * time.Millisecond)
+	atomic.AddInt32(&w.active, -1)
+	return len(p), nil
+}
+
+// TestHeartbeatStopWaitsForGoroutine asserts that the heartbeat stop()
+// does not return until the heartbeat goroutine has stopped writing, so
+// the main loop's next write to e.Progress never overlaps an in-flight
+// heartbeat write. Before the fix stop() only closed the done channel
+// and returned immediately, racing the goroutine on a bare os.Stderr.
+func TestHeartbeatStopWaitsForGoroutine(t *testing.T) {
+	w := &overlapWriter{}
+	e := &Engine{Progress: w, HeartbeatInterval: 10 * time.Millisecond}
+	stop := e.startHeartbeat(time.Now(), "[agon] test")
+	// Let the heartbeat fire and enter an in-flight Write (started at the
+	// 10ms tick, held active until 60ms).
+	time.Sleep(40 * time.Millisecond)
+	stop()
+	// stop() must have waited for the in-flight write to finish; writing
+	// now must not overlap the heartbeat goroutine.
+	e.progf("[agon] test: done")
+	if atomic.LoadInt32(&w.raced) != 0 {
+		t.Error("main-loop write overlapped an in-flight heartbeat write; stop() did not wait")
 	}
 }
 
