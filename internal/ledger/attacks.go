@@ -87,7 +87,10 @@ func Append(s *state.Session, r Record) error {
 
 // Aggregate reads attacks.jsonl forward and folds records by attack_id.
 // Later non-zero/non-empty fields supersede earlier ones; final status
-// is the last status seen. A truncated trailing line is tolerated.
+// is the last status seen. Any unparseable line is skipped: the ledger
+// is append-only, so the only realistic corruption is a truncated final
+// line from a crash mid-write, and best-effort aggregation is preferred
+// over failing a run on a single bad line.
 func Aggregate(s *state.Session) (map[string]Record, error) {
 	path := s.Path("attacks.jsonl")
 	f, err := os.Open(path)
@@ -109,7 +112,8 @@ func Aggregate(s *state.Session) (map[string]Record, error) {
 		}
 		var r Record
 		if err := json.Unmarshal(line, &r); err != nil {
-			// Truncated trailing line; stop without erroring.
+			// Tolerate any unparseable line (see Aggregate's doc): skip it
+			// and keep folding the rest rather than failing the run.
 			continue
 		}
 		fold(out, r)
