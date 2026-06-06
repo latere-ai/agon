@@ -33,6 +33,35 @@ func TestParseHappy(t *testing.T) {
 	}
 }
 
+// TestParseFenceWithHeaderLine pins the fence-aware tokenizer: a "## "
+// line inside a reproduction fence (critics routinely quote markdown
+// counterexamples) must not be mistaken for a new section header. Before
+// the fix the body split there, extractFenced found no closing fence,
+// and the otherwise-valid attack was dropped as DroppedNoReproduce.
+func TestParseFenceWithHeaderLine(t *testing.T) {
+	doc := "# Critic 1 - round 1 attacks\n\naspect: security\n\n" +
+		"## c1-1 [src/api.py:88]\n\n" +
+		"claim: the search handler concatenates user input into a SQL LIKE pattern without escaping.\n\n" +
+		"expected violation: an attacker can inject boolean logic via q=%' OR 1=1--.\n\n" +
+		"reproduction:\n```\ncurl 'http://localhost/search?q=1'\n## Section Two\nHTTP/1.1 200 OK\n```\n"
+	out, stats, err := Parse(doc, "security", 1, 1, nil, ParseOption{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("attacks: got %d, want 1", len(out))
+	}
+	if stats.KeptIntroduce != 1 {
+		t.Errorf("kept introduce: got %d, want 1", stats.KeptIntroduce)
+	}
+	if stats.DroppedNoReproduce != 0 {
+		t.Errorf("dropped no-reproduce: got %d, want 0", stats.DroppedNoReproduce)
+	}
+	if !strings.Contains(out[0].Reproduction, "## Section Two") {
+		t.Errorf("reproduction lost the fenced header line: %q", out[0].Reproduction)
+	}
+}
+
 func TestDropNoReproduction(t *testing.T) {
 	doc := "# Critic 1 - round 1 attacks\n\naspect: security\n\n## c1-1 [x.py:1]\n\nclaim: x\n\nexpected violation: panic in y\n"
 	_, stats, err := Parse(doc, "security", 1, 1, nil, ParseOption{})

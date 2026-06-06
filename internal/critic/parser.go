@@ -125,8 +125,16 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 	}
 	var sections []section
 	var cur *section
+	// Track fenced code blocks so a "## " line inside a reproduction
+	// fence (critics routinely quote markdown counterexamples) is not
+	// mistaken for a new section header, which would split the body and
+	// drop the attack as DroppedNoReproduce.
+	inFence := false
 	for _, line := range lines {
-		if strings.HasPrefix(line, "## ") {
+		if strings.HasPrefix(strings.TrimSpace(line), "```") {
+			inFence = !inFence
+		}
+		if !inFence && strings.HasPrefix(line, "## ") {
 			if cur != nil {
 				sections = append(sections, *cur)
 			}
