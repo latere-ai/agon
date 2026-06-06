@@ -176,6 +176,7 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 			continue
 		}
 		id, location, dispTag := m[1], m[2], m[3]
+		originalID := id
 		bodyText := strings.Join(sec.body, "\n")
 
 		// Disposition.
@@ -196,7 +197,6 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 			if !priorSet[id] {
 				// Withdrawing an unknown id is a renaming → introduce.
 				disp = DispIntroduce
-				stats.Renamed++
 			} else {
 				out = append(out, Attack{
 					AttackID: id, CriticIndex: criticIndex, Aspect: gotAspect,
@@ -233,16 +233,11 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 			s, _ := strconv.Atoi(idMatch[2])
 			if ci == criticIndex {
 				seq = s
-			} else {
-				stats.Renamed++
 			}
-		} else {
-			stats.Renamed++
 		}
 		if disp == DispReAttack {
 			if !priorSet[id] {
 				disp = DispIntroduce
-				stats.Renamed++
 				seq = 0
 			}
 		}
@@ -257,14 +252,16 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 			if seq == 0 || seenIDs[id] || idMatch == nil || priorSet[id] {
 				maxSeq++
 				seq = maxSeq
-				newID := fmt.Sprintf("c%d-%d", criticIndex, seq)
-				if newID != id {
-					stats.Renamed++
-				}
-				id = newID
+				id = fmt.Sprintf("c%d-%d", criticIndex, seq)
 			} else if seq > maxSeq {
 				maxSeq = seq
 			}
+		}
+		// Count one rename per section: the id the critic wrote was
+		// normalized to a different id. Counting the individual
+		// normalization steps above double-counted a single section.
+		if id != originalID {
+			stats.Renamed++
 		}
 		seenIDs[id] = true
 

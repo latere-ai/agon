@@ -88,6 +88,25 @@ func TestParseMalformedHeaderCounted(t *testing.T) {
 	}
 }
 
+// TestParseRenamedCountedOncePerSection pins that a section is counted
+// in Renamed at most once. A cross-critic id (c2-1 written by critic 1)
+// is normalized to c1-1: exactly one rename, where the old code counted
+// the normalization steps and reported two.
+func TestParseRenamedCountedOncePerSection(t *testing.T) {
+	doc := "# Critic 1 - round 1 attacks\n\naspect: security\n\n" +
+		"## c2-1 [x.py:1]\n\nclaim: leaks token\n\nexpected violation: panic\n\nreproduction:\n```\nrun\n```\n"
+	out, stats, err := Parse(doc, "security", 1, 1, nil, ParseOption{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || out[0].AttackID != "c1-1" {
+		t.Fatalf("attacks: got %+v, want one c1-1", out)
+	}
+	if stats.Renamed != 1 {
+		t.Errorf("Renamed: got %d, want 1", stats.Renamed)
+	}
+}
+
 func TestDropNoReproduction(t *testing.T) {
 	doc := "# Critic 1 - round 1 attacks\n\naspect: security\n\n## c1-1 [x.py:1]\n\nclaim: x\n\nexpected violation: panic in y\n"
 	_, stats, err := Parse(doc, "security", 1, 1, nil, ParseOption{})
