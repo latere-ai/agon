@@ -427,6 +427,52 @@ func TestEngineHeartbeatDuringSlowAgent(t *testing.T) {
 	}
 }
 
+// TestEngineInterruptDuringAgentCall asserts that cancelling the parent
+// context while an agent call is in flight ends the run as TermInterrupted
+// (not ErrAgentFatal) so the finalize/summary path still runs and the
+// already-completed work is persisted rather than discarded. Without the
+// fix, runFork wraps the cancellation error as ErrAgentFatal and Run
+// returns (nil, err), skipping finalize entirely.
+func TestEngineInterruptDuringAgentCall(t *testing.T) {
+	sess, err := state.NewSession(t.TempDir(), 1, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r1 := "# Critic 1 - round 1 attacks\n\naspect: security\n\n## c1-1 [x.go:1]\n\nclaim: leaks token\n\nexpected violation: panic at runtime\n\nreproduction:\n```\ngo test\n```\n"
+
+	ctx, cancel := context.WithCancel(context.Background())
+	// A slow critic that blocks long enough for us to cancel mid-call;
+	// slowCritic returns ctx.Err() when the context is cancelled.
+	slow := &slowCritic{rounds: []string{r1}, delay: 5 * time.Second}
+	e := &Engine{
+		Sess: sess, Cwd: t.TempDir(),
+		ForkCount: 1,
+		Proposer: &stubProposer{
+			first: func(string) (*agent.ProposerResult, error) {
+				return &agent.ProposerResult{ForkID: "f", Response: "rebut c1-1: ok", Tokens: 10}, nil
+			},
+			next: func(string) (*agent.ProposerResult, error) { return nil, nil },
+		},
+		NewCritic: func(_ int) agent.Critic { return slow },
+		MaxRounds: 6, CostCap: 1_000_000, TaskContext: "task", DiffPatch: "diff",
+		HeartbeatInterval: -1,
+	}
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		cancel()
+	}()
+	sum, err := e.Run(ctx)
+	if err != nil {
+		t.Fatalf("Run returned error on interrupt, want nil (finalize must run): %v", err)
+	}
+	if sum == nil {
+		t.Fatal("Run returned nil summary on interrupt; finalize was skipped")
+	}
+	if sum.Termination != TermInterrupted {
+		t.Errorf("termination: got %s, want interrupted", sum.Termination)
+	}
+}
+
 // TestEngineHeartbeatDisabledWhenNegativeInterval pins the escape
 // hatch: callers that want to silence the heartbeat (without nilling
 // Progress) can pass a negative interval.

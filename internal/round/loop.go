@@ -310,6 +310,17 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 			res, stats, err := e.criticRound(ctx, cri, a, forkIdx, round, priorIDs)
 			stop()
 			if err != nil {
+				// A cancelled parent context (Ctrl-C / SIGTERM) surfaces
+				// here as an agent error. Treat it as an interrupt so the
+				// finalize/summary path still runs and already-completed
+				// rounds are persisted, rather than as a fatal error that
+				// discards the run. The per-call deadline lives in a child
+				// context inside agent.Exec, so a genuine timeout leaves
+				// the parent ctx.Err() nil and still falls through below.
+				if ctx.Err() != nil || errors.Is(err, context.Canceled) {
+					runStop = TermInterrupted
+					break
+				}
 				return out, "", fmt.Errorf("%w: critic %d round %d: %v", ErrAgentFatal, forkIdx, round, err)
 			}
 			// Capture the declared topic the first time we see one and
@@ -370,6 +381,12 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 			}
 			stop()
 			if err != nil {
+				// See the critic branch above: a cancelled parent context
+				// is an interrupt, not a fatal error, so let finalize run.
+				if ctx.Err() != nil || errors.Is(err, context.Canceled) {
+					runStop = TermInterrupted
+					break
+				}
 				return out, "", fmt.Errorf("%w: proposer fork %d round %d: %v", ErrAgentFatal, forkIdx, round, err)
 			}
 			cost.Add(pr.Tokens)
