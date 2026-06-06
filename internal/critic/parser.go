@@ -44,7 +44,12 @@ type ParseStats struct {
 	DroppedNoReproduce int
 	DroppedStyle       int
 	DroppedCrossAspect int
-	Renamed            int
+	// DroppedMalformedHeader counts sections whose "## " header did not
+	// match the expected shape and were skipped. Surfacing it keeps the
+	// invariant Total = sum(Kept*) + sum(Dropped*) so an attack lost to a
+	// slightly malformed header is visible in operator diagnostics.
+	DroppedMalformedHeader int
+	Renamed                int
 }
 
 // ParseOption tunes parser behavior.
@@ -167,6 +172,7 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 	for _, sec := range sections {
 		m := sectionHeadRE.FindStringSubmatch(sec.header)
 		if m == nil {
+			stats.DroppedMalformedHeader++
 			continue
 		}
 		id, location, dispTag := m[1], m[2], m[3]

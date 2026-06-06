@@ -62,6 +62,32 @@ func TestParseFenceWithHeaderLine(t *testing.T) {
 	}
 }
 
+// TestParseMalformedHeaderCounted pins that a section whose "## " header
+// fails the expected shape is counted in DroppedMalformedHeader, so the
+// buckets reconcile to Total instead of an attack vanishing silently.
+func TestParseMalformedHeaderCounted(t *testing.T) {
+	doc := "# Critic 1 - round 1 attacks\n\naspect: security\n\n" +
+		"## c1-1 [x.py:1]\n\nclaim: leaks token\n\nexpected violation: panic\n\nreproduction:\n```\nrun\n```\n\n" +
+		"---\n\n" +
+		"## c1-2 no brackets here\n\nclaim: whatever\n"
+	out, stats, err := Parse(doc, "security", 1, 1, nil, ParseOption{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 {
+		t.Fatalf("attacks: got %d, want 1", len(out))
+	}
+	if stats.DroppedMalformedHeader != 1 {
+		t.Errorf("DroppedMalformedHeader: got %d, want 1", stats.DroppedMalformedHeader)
+	}
+	sum := stats.KeptIntroduce + stats.KeptReAttack + stats.KeptWithdraw +
+		stats.DroppedNoReproduce + stats.DroppedStyle + stats.DroppedCrossAspect +
+		stats.DroppedMalformedHeader
+	if sum != stats.Total {
+		t.Errorf("buckets %d do not reconcile to Total %d", sum, stats.Total)
+	}
+}
+
 func TestDropNoReproduction(t *testing.T) {
 	doc := "# Critic 1 - round 1 attacks\n\naspect: security\n\n## c1-1 [x.py:1]\n\nclaim: x\n\nexpected violation: panic in y\n"
 	_, stats, err := Parse(doc, "security", 1, 1, nil, ParseOption{})
