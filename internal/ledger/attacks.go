@@ -198,11 +198,26 @@ func fold(out map[string]Record, in Record) {
 	out[in.AttackID] = cur
 }
 
+// spillDoc is the JSON side-car shape for a spilled record body. JSON
+// is used instead of "## "-delimited markdown because the body fields
+// are LLM-generated and can themselves contain "## " lines, which the
+// old markdown parser mistook for section boundaries and silently
+// truncated on round-trip.
+type spillDoc struct {
+	Claim             string `json:"claim"`
+	ExpectedViolation string `json:"expected_violation"`
+	Reproduction      string `json:"reproduction"`
+}
+
 func spillBody(s *state.Session, r *Record) error {
-	rel := filepath.Join("forks", fmt.Sprintf("critic-%d", r.CriticIndex), "attacks", r.AttackID+".md")
-	body := fmt.Sprintf("## Claim\n\n%s\n\n## Expected violation\n\n%s\n\n## Reproduction\n\n%s\n",
-		r.Claim, r.ExpectedViolation, r.Reproduction)
-	if err := s.AtomicWrite(rel, []byte(body)); err != nil {
+	rel := filepath.Join("forks", fmt.Sprintf("critic-%d", r.CriticIndex), "attacks", r.AttackID+".json")
+	body, err := json.Marshal(spillDoc{
+		Claim: r.Claim, ExpectedViolation: r.ExpectedViolation, Reproduction: r.Reproduction,
+	})
+	if err != nil {
+		return err
+	}
+	if err := s.AtomicWrite(rel, body); err != nil {
 		return err
 	}
 	r.BodyPath = rel
@@ -210,6 +225,11 @@ func spillBody(s *state.Session, r *Record) error {
 }
 
 func parseSpill(b string) (claim, exp, repro string) {
+	var d spillDoc
+	if err := json.Unmarshal([]byte(b), &d); err == nil {
+		return d.Claim, d.ExpectedViolation, d.Reproduction
+	}
+	// Backward-compat: older side-cars used "## "-delimited markdown.
 	sections := splitOnHeader(b, "## ")
 	for _, sec := range sections {
 		switch {

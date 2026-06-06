@@ -86,6 +86,33 @@ func TestBodySpill(t *testing.T) {
 	}
 }
 
+// TestBodySpillWithEmbeddedHeaders pins that a spilled body whose Claim
+// contains a "## " line round-trips intact. The old markdown side-car
+// split on every "## " line, so an embedded header truncated the Claim
+// and mis-routed the trailing content.
+func TestBodySpillWithEmbeddedHeaders(t *testing.T) {
+	s := freshSession(t)
+	claim := "## Reproduction\nthis text is really part of the claim\n" + strings.Repeat("x", SpillThreshold)
+	if err := Append(s, Record{AttackID: "c1-1", CriticIndex: 1, Aspect: "a", Claim: claim, ExpectedViolation: "y", Reproduction: "z", Status: StatusOpen, RoundLastTouched: 1}); err != nil {
+		t.Fatal(err)
+	}
+	agg, _ := Aggregate(s)
+	r := agg["c1-1"]
+	if r.BodyPath == "" {
+		t.Fatal("expected body_path set after spill")
+	}
+	loaded, err := LoadBody(s, r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Claim != claim {
+		t.Errorf("claim round-trip corrupted: got len=%d, want len=%d", len(loaded.Claim), len(claim))
+	}
+	if loaded.ExpectedViolation != "y" || loaded.Reproduction != "z" {
+		t.Errorf("fields corrupted: exp=%q repro=%q", loaded.ExpectedViolation, loaded.Reproduction)
+	}
+}
+
 func TestTruncatedTrailingLineTolerated(t *testing.T) {
 	s := freshSession(t)
 	round1 := 1
