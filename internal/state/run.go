@@ -3,6 +3,8 @@ package state
 import (
 	"encoding/json"
 	"time"
+
+	"latere.ai/x/agon/internal/agent"
 )
 
 // StartFile is the schema written to <session>/start.json.
@@ -79,23 +81,13 @@ type Termination struct {
 
 // Stats summarizes counts by status, per-fork rounds, tokens, wall time.
 type Stats struct {
-	TotalAttacks          int            `json:"total_attacks"`
-	ByStatus              map[string]int `json:"by_status"`
-	RoundsExecutedPerFork []int          `json:"rounds_executed_per_fork"`
-	TokensUsed            int            `json:"tokens_used"`
-	TokenUsage            *TokenUsage    `json:"token_usage,omitempty"`
-	CostCap               int            `json:"cost_cap"`
-	WallSeconds           int            `json:"wall_seconds"`
-}
-
-// TokenUsage mirrors the per-call breakdown reported by claude. Stored
-// in the run-level end.json for audit; the per-fork stats.json holds
-// the same shape under each fork.
-type TokenUsage struct {
-	Input       int `json:"input_tokens"`
-	Output      int `json:"output_tokens"`
-	CacheCreate int `json:"cache_creation_input_tokens"`
-	CacheRead   int `json:"cache_read_input_tokens"`
+	TotalAttacks          int               `json:"total_attacks"`
+	ByStatus              map[string]int    `json:"by_status"`
+	RoundsExecutedPerFork []int             `json:"rounds_executed_per_fork"`
+	TokensUsed            int               `json:"tokens_used"`
+	TokenUsage            *agent.TokenUsage `json:"token_usage,omitempty"`
+	CostCap               int               `json:"cost_cap"`
+	WallSeconds           int               `json:"wall_seconds"`
 }
 
 // HeadlineRef points at the headline attack id and its score.
