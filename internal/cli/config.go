@@ -44,6 +44,17 @@ func Effective(cmd *cobra.Command, f *Flags) (*Flags, error) {
 	if err != nil {
 		return nil, err
 	}
+	// An explicitly requested --config path must exist: silently falling
+	// back to defaults hides a typo. Auto-discovered paths (empty
+	// f.Config) stay non-fatal when absent.
+	if f.Config != "" {
+		if _, serr := os.Stat(f.Config); serr != nil {
+			if errors.Is(serr, os.ErrNotExist) {
+				return nil, fmt.Errorf("%w: %s", ErrConfigNotFound, f.Config)
+			}
+			return nil, serr
+		}
+	}
 	proj, err := loadConfig(projectConfigPath(f.Config))
 	if err != nil {
 		return nil, err

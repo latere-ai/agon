@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -67,6 +68,26 @@ func TestUnknownKeyRejected(t *testing.T) {
 	}
 	if _, err := Effective(cmd, f); err == nil {
 		t.Error("expected error for unknown TOML key")
+	}
+}
+
+// TestExplicitMissingConfigErrors pins that an explicit --config path
+// that does not exist fails with ErrConfigNotFound rather than silently
+// running on defaults. Auto-discovery (empty Config) stays non-fatal,
+// covered by TestEffective_NoConfigPaths.
+func TestExplicitMissingConfigErrors(t *testing.T) {
+	cmd := &cobra.Command{Use: "agon"}
+	f := Bind(cmd)
+	f.Config = filepath.Join(t.TempDir(), "does-not-exist.toml")
+	if err := cmd.ParseFlags(nil); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Effective(cmd, f)
+	if err == nil {
+		t.Fatal("expected error for missing explicit --config path, got nil")
+	}
+	if !errors.Is(err, ErrConfigNotFound) {
+		t.Errorf("error: got %v, want wrap of ErrConfigNotFound", err)
 	}
 }
 
