@@ -20,6 +20,31 @@ func TestParsePorcelain(t *testing.T) {
 	}
 }
 
+// TestParsePorcelainRenameAndQuoted pins the destination-path handling
+// for rename/copy lines and the unquoting of paths git wraps in double
+// quotes. Before the fix a rename returned the bogus "orig -> dest"
+// token and a quoted path kept its surrounding quotes, neither matching
+// a real on-disk path.
+func TestParsePorcelainRenameAndQuoted(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want []string
+	}{
+		{"rename", "R  old.go -> new.go\n", []string{"new.go"}},
+		{"copy", "C  src.go -> dst.go\n", []string{"dst.go"}},
+		{"quoted", "A  \"sp ace.txt\"\n", []string{"sp ace.txt"}},
+		{"plain", " M file.go\n", []string{"file.go"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := parsePorcelain(tc.in); !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestChangedFilesAfter(t *testing.T) {
 	dir := t.TempDir()
 	for _, c := range [][]string{

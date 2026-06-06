@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -119,7 +120,23 @@ func parsePorcelain(s string) []string {
 		if len(line) < 4 {
 			continue
 		}
-		out = append(out, strings.TrimSpace(line[3:]))
+		status := line[0]
+		path := strings.TrimSpace(line[3:])
+		// Rename/copy lines are "orig -> dest"; keep the destination.
+		if status == 'R' || status == 'C' {
+			if i := strings.Index(path, " -> "); i >= 0 {
+				path = path[i+len(" -> "):]
+			}
+		}
+		// git wraps paths containing special bytes in double quotes;
+		// unquote so the result matches the real on-disk path. (strconv
+		// covers common C-style escapes, not git's octal-escaped UTF-8.)
+		if strings.HasPrefix(path, `"`) {
+			if unq, err := strconv.Unquote(path); err == nil {
+				path = unq
+			}
+		}
+		out = append(out, path)
 	}
 	return out
 }
