@@ -48,12 +48,6 @@ func (d *Detector) SteadyState(history []ForkHistory) bool {
 		prev.NewAttacks == 0 && prev.ReAttacks == 0
 }
 
-// MaxRoundsReached returns true once the round number reaches the
-// per-fork round cap (which is 2 * --max-turn).
-func (d *Detector) MaxRoundsReached(round int) bool {
-	return round >= d.MaxRounds
-}
-
 // MalformedTwice returns true when the last two critic rounds in
 // history both have MalformedFlag = true.
 func (d *Detector) MalformedTwice(history []ForkHistory) bool {
@@ -61,11 +55,6 @@ func (d *Detector) MalformedTwice(history []ForkHistory) bool {
 		return false
 	}
 	return history[len(history)-1].MalformedFlag && history[len(history)-2].MalformedFlag
-}
-
-// CostCapHit returns true once totalTokens >= d.CostCap.
-func (d *Detector) CostCapHit(totalTokens int) bool {
-	return totalTokens >= d.CostCap
 }
 
 // CostMeter accumulates token usage across all subprocess calls.
@@ -88,9 +77,6 @@ func (c *CostMeter) Add(tokens int) {
 
 // Used returns the total tokens consumed.
 func (c *CostMeter) Used() int { return c.used }
-
-// Remaining returns cap - used; can go negative.
-func (c *CostMeter) Remaining() int { return c.cap - c.used }
 
 // ExceedsCap returns true iff used >= cap.
 func (c *CostMeter) ExceedsCap() bool { return c.used >= c.cap }
