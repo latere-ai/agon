@@ -373,6 +373,15 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 				forkIdx, round-1)
 			var pr *agent.ProposerResult
 			var err error
+			// Snapshot the cwd's already-modified file set before the
+			// proposer runs so we can diff against it afterwards and
+			// attribute only this round's edits. A non-git cwd (e.g. in
+			// tests) yields an error we degrade to an empty baseline.
+			before, beforeErr := state.ChangedFilesAfter(ctx, e.Cwd, nil)
+			if beforeErr != nil {
+				e.progf("[agon] fork %d/%d: changed-files snapshot failed: %v", forkIdx, e.ForkCount, beforeErr)
+				before = nil
+			}
 			stop := e.startHeartbeat(roundStart, prefix)
 			if forkID == "" {
 				pr, err = e.Proposer.FirstRound(ctx, pointer)
@@ -394,6 +403,15 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 					break
 				}
 				return out, "", fmt.Errorf("%w: proposer fork %d round %d: %v", ErrAgentFatal, forkIdx, round, err)
+			}
+			// Attribute the files this round changed: everything modified
+			// in cwd that was not already modified before the call. The
+			// proposer never reports this itself, so without this the
+			// ledger ConcessionFiles and the round markdown stay empty.
+			if changed, cerr := state.ChangedFilesAfter(ctx, e.Cwd, before); cerr != nil {
+				e.progf("[agon] fork %d/%d: changed-files diff failed: %v", forkIdx, e.ForkCount, cerr)
+			} else {
+				pr.ChangedFiles = changed
 			}
 			cost.Add(pr.Tokens)
 			out.Usage.Proposer.Add(pr.Usage)

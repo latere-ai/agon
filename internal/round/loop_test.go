@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -914,6 +915,82 @@ func (s *cachingProposer) next() (*agent.ProposerResult, error) {
 		ForkID: "fork", Response: "rebut c1-1: ok",
 		Tokens: u.Input + u.Output, Usage: u,
 	}, nil
+}
+
+// TestEngineProposerChangedFilesPopulated proves the engine attributes
+// the files a proposer round edits in cwd to the conceded attack's
+// ConcessionFiles. Before the fix the proposer never reported changed
+// files, so ConcessionFiles was always empty.
+func TestEngineProposerChangedFilesPopulated(t *testing.T) {
+	cwd := t.TempDir()
+	gitInit(t, cwd)
+
+	sess, err := state.NewSession(t.TempDir(), 1, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r1 := "# Critic 1 - round 1 attacks\n\naspect: security\n\n## c1-1 [x.go:1]\n\nclaim: leaks token\n\nexpected violation: panic at runtime\n\nreproduction:\n```\ngo test\n```\n"
+	r3 := "# Critic 1 - round 3 attacks\n\naspect: security\n"
+	r5 := "# Critic 1 - round 5 attacks\n\naspect: security\n"
+
+	e := &Engine{
+		Sess: sess, Cwd: cwd,
+		ForkCount: 1,
+		Proposer: &stubProposer{
+			first: func(_ string) (*agent.ProposerResult, error) {
+				// Simulate the proposer fixing the attack by editing a file
+				// in cwd, then conceding.
+				if werr := os.WriteFile(filepath.Join(cwd, "fix.go"), []byte("package x\n"), 0o644); werr != nil {
+					return nil, werr
+				}
+				return &agent.ProposerResult{ForkID: "fork-1", Response: "concede c1-1: fixed the leak", Tokens: 10}, nil
+			},
+			next: func(_ string) (*agent.ProposerResult, error) {
+				return &agent.ProposerResult{ForkID: "fork-1", Response: "no further action", Tokens: 10}, nil
+			},
+		},
+		NewCritic: func(_ int) agent.Critic { return &stubCritic{rounds: []string{r1, r3, r5}} },
+		MaxRounds: 6, CostCap: 100000, TaskContext: "task", DiffPatch: "diff",
+	}
+	if _, err := e.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	agg, err := ledger.Aggregate(sess)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, ok := agg["c1-1"]
+	if !ok {
+		t.Fatalf("attack c1-1 not in ledger: %v", agg)
+	}
+	if rec.Status != ledger.StatusConceded {
+		t.Fatalf("status: got %s, want conceded", rec.Status)
+	}
+	found := false
+	for _, f := range rec.ConcessionFiles {
+		if strings.Contains(f, "fix.go") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("ConcessionFiles missing fix.go: %v", rec.ConcessionFiles)
+	}
+}
+
+func gitInit(t *testing.T, dir string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "t@example.com"},
+		{"config", "user.name", "t"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
 }
 
 func TestDefenseLineParsing(t *testing.T) {
