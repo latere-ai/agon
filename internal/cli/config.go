@@ -192,7 +192,11 @@ func applyConfigToFlags(cmd *cobra.Command, f *Flags, c *configFile) {
 	if c.present["judge"] {
 		set("judge", func() { f.Judge = c.Judge })
 	}
-	// trigger and allow_style_attacks have no CLI counterpart; stored
-	// elsewhere or consulted directly from the configFile by future
-	// specs (e.g., spec 14 reads allow_style_attacks).
+	if c.present["allow_style_attacks"] {
+		// No CLI flag, so apply the TOML value directly; the round
+		// engine forwards it to the critic parser's ParseOption.
+		f.AllowStyleAttacks = c.AllowStyleAttacks
+	}
+	// trigger has no CLI counterpart and no consumer yet; it is accepted
+	// (documented in spec 05) but currently a no-op.
 }

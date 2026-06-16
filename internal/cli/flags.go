@@ -31,6 +31,9 @@ type Flags struct {
 	Config          string
 	Verbose         int
 	LogMode         string
+	// AllowStyleAttacks keeps style-shaped critic attacks instead of
+	// dropping them. TOML-only (allow_style_attacks); no CLI flag.
+	AllowStyleAttacks bool
 }
 
 // LogMode constants for --log-mode. See Flags.LogMode for the

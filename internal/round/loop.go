@@ -58,6 +58,9 @@ type Engine struct {
 	// or redirected stderr stays plain so log files don't fill with
 	// raw escape codes.
 	Styled bool
+	// AllowStyleAttacks forwards the TOML allow_style_attacks key to the
+	// critic parser so style-shaped attacks are kept instead of dropped.
+	AllowStyleAttacks bool
 }
 
 // ANSI escapes used to decorate progress lines when Styled is true.
@@ -572,7 +575,7 @@ func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Asp
 	if expected == "" || expected == "auto" {
 		expected = declared
 	}
-	attacks, stats, err := critic.Parse(res.Markdown, expected, forkIdx, round, priorIDs, critic.ParseOption{})
+	attacks, stats, err := critic.Parse(res.Markdown, expected, forkIdx, round, priorIDs, critic.ParseOption{AllowStyleAttacks: e.AllowStyleAttacks})
 	if err != nil {
 		return criticRoundResult{tokens: res.Tokens, usage: res.Usage, usd: res.USD, declaredTopic: declared}, stats, err
 	}

@@ -34,6 +34,50 @@ side_count = 2
 	}
 }
 
+// TestAllowStyleAttacksFromConfig proves the TOML allow_style_attacks
+// key is wired through to Flags. Before the fix it parsed but was never
+// read, so setting it was a silent no-op.
+func TestAllowStyleAttacksFromConfig(t *testing.T) {
+	t.Run("true flips the flag", func(t *testing.T) {
+		dir := t.TempDir()
+		cfg := filepath.Join(dir, ".agon.toml")
+		if err := os.WriteFile(cfg, []byte("allow_style_attacks = true\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cmd := &cobra.Command{Use: "agon"}
+		f := Bind(cmd)
+		f.Config = cfg
+		if err := cmd.ParseFlags(nil); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Effective(cmd, f); err != nil {
+			t.Fatal(err)
+		}
+		if !f.AllowStyleAttacks {
+			t.Error("allow_style_attacks=true did not set f.AllowStyleAttacks")
+		}
+	})
+	t.Run("unset leaves the default false", func(t *testing.T) {
+		dir := t.TempDir()
+		cfg := filepath.Join(dir, ".agon.toml")
+		if err := os.WriteFile(cfg, []byte("max_turn = 4\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cmd := &cobra.Command{Use: "agon"}
+		f := Bind(cmd)
+		f.Config = cfg
+		if err := cmd.ParseFlags(nil); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Effective(cmd, f); err != nil {
+			t.Fatal(err)
+		}
+		if f.AllowStyleAttacks {
+			t.Error("allow_style_attacks unset should leave f.AllowStyleAttacks false")
+		}
+	})
+}
+
 func TestCLIFlagWinsOverConfig(t *testing.T) {
 	dir := t.TempDir()
 	cfg := filepath.Join(dir, ".agon.toml")

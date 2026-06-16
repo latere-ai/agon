@@ -249,6 +249,7 @@ func Run(ctx context.Context, flags *cli.Flags, plan *cli.Plan) (int, error) {
 		Progress:          progress,
 		HeartbeatInterval: heartbeat,
 		Styled:            progress != nil && summary.IsTerminal(os.Stderr),
+		AllowStyleAttacks: flags.AllowStyleAttacks,
 	}
 	sumRes, err := eng.Run(ctx)
 	if err != nil {

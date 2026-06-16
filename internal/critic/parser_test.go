@@ -129,6 +129,20 @@ func TestDropStyle(t *testing.T) {
 	}
 }
 
+func TestAllowStyleAttacksKeepsStyle(t *testing.T) {
+	doc := "# Critic 1 - round 1 attacks\n\naspect: code-quality\n\n## c1-1 [x.py:1]\n\nclaim: This function should be named more idiomatic.\n\nexpected violation: it bothers me\n\nreproduction:\n```\nrun it\n```\n"
+	out, stats, err := Parse(doc, "code-quality", 1, 1, nil, ParseOption{AllowStyleAttacks: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.DroppedStyle != 0 {
+		t.Errorf("DroppedStyle: got %d, want 0 with AllowStyleAttacks", stats.DroppedStyle)
+	}
+	if len(out) != 1 {
+		t.Errorf("attacks: got %d, want 1 kept", len(out))
+	}
+}
+
 func TestDropCrossAspect(t *testing.T) {
 	doc := "# Critic 1 - round 1 attacks\n\naspect: performance\n\n## c1-1 [x.py:1]\n\nclaim: SQL injection in the search handler.\n\nexpected violation: panic\n\nreproduction:\n```\ngo\n```\n"
 	_, stats, err := Parse(doc, "performance", 1, 1, nil, ParseOption{})
