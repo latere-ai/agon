@@ -18,7 +18,6 @@ import (
 type Transcript struct {
 	Path      string
 	SessionID string
-	Cwd       string
 	FirstUser string
 	StartedAt time.Time
 	LineCount int
@@ -123,9 +122,6 @@ func ReadTranscript(path string) (*Transcript, error) {
 		Path:      path,
 		SessionID: strings.TrimSuffix(filepath.Base(path), ".jsonl"),
 	}
-	if abs := decodeCwdFromTranscript(path); abs != "" {
-		t.Cwd = abs
-	}
 
 	scanner := bufio.NewScanner(f)
 	scanner.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
@@ -219,21 +215,4 @@ func ExtractFirstUser(records [][]byte) (string, error) {
 		}
 	}
 	return "", ErrNoUserTurn
-}
-
-// decodeCwdFromTranscript returns the absolute cwd encoded in a
-// .../projects/<encoded>/<id>.jsonl path. Returns "" if the path does
-// not match.
-func decodeCwdFromTranscript(path string) string {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return ""
-	}
-	parts := strings.Split(filepath.ToSlash(abs), "/")
-	for i, p := range parts {
-		if p == "projects" && i+1 < len(parts) {
-			return DecodeCwd(parts[i+1])
-		}
-	}
-	return ""
 }
