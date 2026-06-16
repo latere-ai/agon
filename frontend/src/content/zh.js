@@ -1,6 +1,6 @@
 export const zh = {
     meta: {
-        title: 'Agon — 让 AI 为自己辩护',
+        title: 'Agon：面向 AI 产出的对抗式验证',
         description: 'Agon 是面向 AI 产出的对抗式验证关卡。由一位独立评审对 AI 产出进行交叉质询；生产方辩护或让步；只有仍存争议的部分才会交到人手中。',
     },
     nav: {
@@ -15,14 +15,14 @@ export const zh = {
     hero: {
         stampProposer: 'PROPOSER',
         stampCritic: 'CRITIC',
-        title: '<em>对抗式</em>验证。<br><span class="ht-line">对 <em>AI</em> 逐手交叉质询 <span style="color:var(--accent)">★</span></span>',
+        title: '<em>对抗式</em>验证。<br><span class="ht-line">由独立评审对 <em>AI</em> 进行交叉质询。<span style="color:var(--accent)">★</span></span>',
         sub: '由 AI <span style="color:var(--text);font-weight:600">提议方</span> 给出产出。一位独立的 <span style="color:var(--accent);font-weight:600">评审</span> 发起攻击。两者进行有界辩论；评审将<strong>一条</strong>未解攻击押注为决定性叶子。裁判只审视那个叶子，绝不看完整记录。人只复核最终存留的争议。',
         ctaPrimary: '安装 Agon',
         ctaSecondary: '工作原理 →',
         worksWith: '兼容',
     },
     stage: {
-        head: 'case · 9f4c — 重构 token 缓存 <span style="color:var(--text-muted);margin-left:8px">· 跨家族配对</span>',
+        head: 'case · 9f4c · 重构 token 缓存 <span style="color:var(--text-muted);margin-left:8px">· 跨家族配对</span>',
         proposerCol: '提议方',
         criticCol: '评审',
         proposerName: 'agent α',
@@ -58,9 +58,9 @@ export const zh = {
         verdictRight: '争议度 0.74 · 需人工复核',
     },
     transcript: {
-        eyebrow: '实时记录',
+        eyebrow: '示例记录',
         title: '一场辩论<em>就是这个样子。</em>',
-        lead: '一次真实 Agon 会话的解剖：一场可分叉出子辩论的有界辩论、覆盖整棵树的争议度、单一被押注的叶子。全程可审计。',
+        lead: '一次 Agon 会话的解剖：一场可分叉出子辩论的有界辩论、覆盖整棵树的争议度、单一被押注的叶子。全程可审计。',
         case: 'agon://session/9f4c · diff: refactor token cache',
         meta: 'session · 00:00:42 · α/β · 跨家族',
         rows: [
@@ -140,8 +140,8 @@ export const zh = {
         ],
     },
     why: {
-        eyebrow: '为何成立',
-        title: '四个替代方案<em>无法复制</em>的性质。',
+        eyebrow: '性质',
+        title: '设计所<em>依赖的</em>四个性质。',
         pillars: [
             {
                 k: 'i',
@@ -167,7 +167,7 @@ export const zh = {
     },
     compare: {
         eyebrow: '对比替代方案',
-        title: '别再轻信 AI 产出。<em>交叉质询它。</em>',
+        title: '与<em>原始 LLM 和 PR 评审的对比。</em>',
         headers: ['性质', 'Agon', '原始 LLM', 'PR 评审'],
         rows: [
             { p: '按维度而非整工具地发现缺陷', cols: ['agon', 'no', 'partial'] },
@@ -269,7 +269,7 @@ export const zh = {
         desc: '当你需要一次验证时，由你来运行 Agon，对象是你当前的 Claude 会话或一份 diff。它会派生（fork）生产方（根记录保持不变），启动一个独立评审，运行协议，并把一次可审计的会话写入磁盘。已化解 → 继续。存争议 → 浮现一份聚焦评审。',
         cta: '查看安装',
         lines: [
-            { p: '$', cmd: 'latere agon --session-id 9f4c --max-turn 6' },
+            { p: '$', cmd: 'agon --session-id 9f4c --max-turn 6' },
             { p: '↳', l: 'proposer   fork of session 9f4c · root untouched' },
             { p: '↻', l: 'critic     spawned ............... agent-β' },
             { p: '↻', l: 'rounds     R1..Rn ............... 42s' },
@@ -313,7 +313,7 @@ export const zh = {
         title: '一个二进制。<em>按需运行。</em>',
         lead: '本地优先、厂商中立。自带你的一对模型；Agon 运行协议并把一次可审计的会话写入磁盘。',
         a: { c: '一行命令，自动检测 OS/架构并校验 checksum', cmd: 'curl -fsSL https://latere.ai/install.sh | sh' },
-        b: { c: '按需运行一次验证，针对你当前的会话', cmd: 'latere agon --session-id <session>' },
+        b: { c: '按需运行一次验证，针对你当前的会话', cmd: 'agon --session-id <session>' },
         copy: '复制',
         copied: '已复制',
         ctaPrimary: '在 GitHub 查看',

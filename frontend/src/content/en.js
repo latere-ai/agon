@@ -1,7 +1,7 @@
 export const en = {
     meta: {
-        title: 'Agon — Make AI defend itself',
-        description: 'Agon — adversarial verification gate for AI-produced work. An independent critic cross-examines AI output; the producer defends or concedes; only contested disputes reach a human.',
+        title: 'Agon: adversarial review for AI-produced work',
+        description: 'Agon is an adversarial verification gate for AI-produced work. An independent critic cross-examines the output, the producer defends or concedes, and only contested disputes reach a human.',
     },
     nav: {
         by: 'by Latere',
@@ -15,14 +15,14 @@ export const en = {
     hero: {
         stampProposer: 'PROPOSER',
         stampCritic: 'CRITIC',
-        title: '<em>Adversarial</em> verification.<br><span class="ht-line">Cross-examine the <em>AI</em>, <span style="color:var(--accent)">★</span> move by move.</span>',
-        sub: 'An AI <span style="color:var(--text);font-weight:600">proposer</span> writes. An independent <span style="color:var(--accent);font-weight:600">critic</span> attacks. They debate, bounded; the critic stakes <strong>one</strong> unresolved attack as the decisive leaf. A judge inspects only that leaf — never the transcript. The human reviews disputes that survive.',
+        title: '<em>Adversarial</em> verification.<br><span class="ht-line">An independent critic cross-examines the <em>AI</em>. <span style="color:var(--accent)">★</span></span>',
+        sub: 'An AI <span style="color:var(--text);font-weight:600">proposer</span> writes. An independent <span style="color:var(--accent);font-weight:600">critic</span> attacks. They debate within a fixed bound. The critic stakes <strong>one</strong> unresolved attack as the decisive leaf. A judge inspects only that leaf, never the full transcript. A human reviews the disputes that survive.',
         ctaPrimary: 'Install Agon',
         ctaSecondary: 'How it works →',
         worksWith: 'Works with',
     },
     stage: {
-        head: 'case · 9f4c — refactor token cache <span style="color:var(--text-muted);margin-left:8px">· cross-family pairing</span>',
+        head: 'case · 9f4c · refactor token cache <span style="color:var(--text-muted);margin-left:8px">· cross-family pairing</span>',
         proposerCol: 'Proposer',
         criticCol: 'Critic',
         proposerName: 'agent α',
@@ -44,7 +44,7 @@ export const en = {
                 r: 'R3',
                 side: 'p',
                 label: 'Defense',
-                html: 'Disagree — invalidate bumps the version counter <em>before</em> publishing. <code>atomic.Value</code> is acquire-release safe.',
+                html: 'Disagree. Invalidate bumps the version counter <em>before</em> publishing. <code>atomic.Value</code> is acquire-release safe.',
             },
             {
                 r: 'R4',
@@ -54,13 +54,13 @@ export const en = {
             },
         ],
         verdictKey: 'Verdict',
-        verdictText: 'Judge inspects only the staked leaf — never the full transcript.',
+        verdictText: 'Judge inspects only the staked leaf, never the full transcript.',
         verdictRight: 'contention 0.74 · review required',
     },
     transcript: {
-        eyebrow: 'Live transcript',
+        eyebrow: 'Sample transcript',
         title: 'A debate <em>looks like this.</em>',
-        lead: 'Anatomy of a real Agon session: a bounded debate that may branch into sub-debates, a contention score over the whole tree, a single staked leaf. Auditable end-to-end.',
+        lead: 'The anatomy of an Agon session: a bounded debate that may branch into sub-debates, a contention score over the whole tree, and a single staked leaf. Auditable end to end.',
         case: 'agon://session/9f4c · diff: refactor token cache',
         meta: 'session · 00:00:42 · α/β · cross-family',
         rows: [
@@ -82,7 +82,7 @@ export const en = {
                 actor: 'critic',
                 actorLabel: 'CRITIC',
                 tag: { label: '∎ ATK-2', kind: 'attack' },
-                html: '"Mutex-free reads" — the version counter increment is still a CAS loop under contention. Claim of lock-free is misleading.',
+                html: '"Mutex-free reads": the version counter increment is still a CAS loop under contention. The lock-free claim is misleading.',
             },
             {
                 n: 'R2·04',
@@ -117,7 +117,7 @@ export const en = {
                 actor: 'critic',
                 actorLabel: 'CRITIC',
                 tag: { label: '⌐ FORK ATK-1', kind: 'attack' },
-                html: 'Sub-debate: <strong>that counter-claim itself is contested.</strong> Acquire-release on amd64 ≠ acquire-release on weak-memory ARM. Reproducer below targets ARM specifically.',
+                html: 'Sub-debate: <strong>that counter-claim itself is contested.</strong> Acquire-release on amd64 ≠ acquire-release on weak-memory ARM. The reproducer below targets ARM specifically.',
             },
             {
                 n: 'R4·08',
@@ -140,34 +140,34 @@ export const en = {
         ],
     },
     why: {
-        eyebrow: 'Why it lands',
-        title: 'Four properties the alternatives <em>do not replicate.</em>',
+        eyebrow: 'Properties',
+        title: 'Four properties <em>the design depends on.</em>',
         pillars: [
             {
                 k: 'i',
                 t: 'One honest player suffices',
-                d: 'A Byzantine proposer must hold a consistent lie across every cross-examination round. An honest critic needs to find one inconsistency. Failure becomes per-aspect, not whole-tool.',
+                d: 'A Byzantine proposer must hold a consistent lie across every cross-examination round. An honest critic only needs to find one inconsistency. Failure becomes per-aspect rather than whole-tool.',
             },
             {
                 k: 'ii',
                 t: 'Vendor-neutral by construction',
-                d: 'Default pairing is cross-family — one model proposes, an unrelated model critiques. Same-model-both-sides is the model debating itself, and is rejected. No vendor will ship the neutral layer.',
+                d: 'The default pairing is cross-family: one model proposes, an unrelated model critiques. Same-model-on-both-sides is a model debating itself, so it is rejected. No vendor will ship the neutral layer.',
             },
             {
                 k: 'iii',
                 t: 'Channel purity',
-                d: 'Critic output reaches the proposer as a verbatim user message, not a skill or template. The proposer defends the way it would against a human pasting a review. Wrapping it distorts the defense.',
+                d: 'Critic output reaches the proposer as a verbatim user message, not a skill or template. The proposer defends the way it would against a human pasting a review. Wrapping the message would distort the defense.',
             },
             {
                 k: 'iv',
                 t: 'Auditable by design',
-                d: 'Stable attack ids, append-only ledger, contention-scored headlines by a pure rule — no LLM judging at the surfacing layer. A security team reads a session like a court transcript.',
+                d: 'Stable attack ids, an append-only ledger, and contention-scored headlines from a pure rule, with no LLM judging at the surfacing layer. A security team can read a session like a court transcript.',
             },
         ],
     },
     compare: {
         eyebrow: 'Vs. the alternatives',
-        title: 'Stop trusting AI output. <em>Cross-examine it.</em>',
+        title: 'How it compares <em>to raw LLMs and PR review.</em>',
         headers: ['Property', 'Agon', 'Raw LLM', 'PR review'],
         rows: [
             { p: 'Bug found per-aspect, not whole-tool', cols: ['agon', 'no', 'partial'] },
@@ -181,18 +181,18 @@ export const en = {
     usecases: {
         eyebrow: 'Where it fits',
         title: 'The artifact <em>need not be code.</em>',
-        lead: 'Anywhere an AI produces work an authority will accept, Agon can sit in the middle. The protocol is the same; only the leaf format changes.',
+        lead: 'Anywhere an AI produces work that an authority will accept, Agon can sit in the middle. The protocol is the same; only the leaf format changes.',
         items: [
             { i: '§', t: 'Code diffs', d: 'Pre-merge gate. Agents resolve attacks → CI proceeds. Contested → human review.' },
-            { i: '¶', t: 'Research write-ups', d: 'Critic challenges claims and citations. Disputed evidence reaches the reviewer, not vibes.' },
-            { i: '⊞', t: 'Plans & decisions', d: 'High-stakes choices defended round-by-round. Contention score gates execution.' },
+            { i: '¶', t: 'Research write-ups', d: 'Critic challenges claims and citations. Disputed evidence reaches the reviewer instead of vibes.' },
+            { i: '⊞', t: 'Plans & decisions', d: 'High-stakes choices defended round by round. The contention score gates execution.' },
             { i: '∮', t: 'Outcome analyses', d: 'Post-mortems and metric reads cross-examined for cherry-picking and unstated assumptions.' },
         ],
     },
     arch: {
         eyebrow: 'Architecture',
         title: 'Three roles. <em>One auditable trail.</em>',
-        lead: 'A proposer and a critic operate in cross-family pairs. The judge inspects only the leaf the debate ends on — never the full transcript.',
+        lead: 'A proposer and a critic operate in cross-family pairs. The judge inspects only the leaf the debate ends on, never the full transcript.',
         cap: 'Proposer ↔ Critic ↔ Judge. Roles do not share weights. Each contested attack can fork into its own sub-debate; the ledger sees the whole tree, the judge sees one leaf.',
     },
     signal: {
@@ -214,20 +214,20 @@ export const en = {
                 num: '0.74',
                 label: 'contention',
                 route: 'escalate ★',
-                desc: "Attacks above threshold reach a human as a focused brief — the staked leaf, the proposer's counter, and the reproducer. Not the transcript.",
+                desc: "Attacks above threshold reach a human as a focused brief: the staked leaf, the proposer's counter, and the reproducer. Not the full transcript.",
             },
         ],
     },
     found: {
         eyebrow: 'Academic foundations',
-        title: 'Grounded in the debate literature — <em>and honest about the limits.</em>',
+        title: 'Grounded in the debate literature, <em>and honest about the limits.</em>',
         lead: 'Agon is built on the adversarial-debate architecture of Irving, Christiano & Amodei. The complexity-theoretic intuition is suggestive, not a claim about LLMs.',
         refs: [
             {
                 yr: '2018',
                 cite: 'Irving, Christiano & Amodei',
                 em: 'AI Safety via Debate',
-                tail: ' — proposes debate as alignment mechanism.',
+                tail: ': proposes debate as an alignment mechanism.',
                 link: 'arXiv:1805.00899',
                 href: 'https://arxiv.org/abs/1805.00899',
             },
@@ -235,7 +235,7 @@ export const en = {
                 yr: '2023',
                 cite: 'Brown-Cohen, Irving & Piliouras',
                 em: 'Scalable AI Safety via Doubly-Efficient Debate',
-                tail: ' — extends to stochastic systems and bounded debaters.',
+                tail: ': extends to stochastic systems and bounded debaters.',
                 link: 'arXiv:2311.14125',
                 href: 'https://arxiv.org/abs/2311.14125',
             },
@@ -243,7 +243,7 @@ export const en = {
                 yr: '2025',
                 cite: 'Brown-Cohen, Irving & Piliouras',
                 em: 'Avoiding Obfuscation with Prover-Estimator Debate',
-                tail: ' — addresses obfuscated-arguments attack.',
+                tail: ': addresses the obfuscated-arguments attack.',
                 link: 'arXiv:2506.13609',
                 href: 'https://arxiv.org/abs/2506.13609',
             },
@@ -251,7 +251,7 @@ export const en = {
                 yr: 'Repo',
                 cite: 'changkun/agents-verification',
                 em: 'Research home',
-                tail: ' — adversarial debate, extended along compute, depth, stochasticity, leaf format, obfuscation, and query-complexity scaling.',
+                tail: ': adversarial debate, extended along compute, depth, stochasticity, leaf format, obfuscation, and query-complexity scaling.',
                 link: 'github →',
                 href: 'https://github.com/changkun/agents-verification',
             },
@@ -261,15 +261,15 @@ export const en = {
             cite: 'Brown-Cohen, Irving & Piliouras · 2023',
         },
         honestStrong: 'Honest framing:',
-        honestRest: ' the formal soundness results are about the protocol under stated assumptions, not a guarantee about any particular model. Application to real LLMs is empirically motivated and hypothesis-stage — the gating metric is the per-aspect critic-found-bug rate. If a critic does not actually attack, debate collapses to the proposer alone. Agon does not prove your code correct, and does not claim to remove the need for trust.',
+        honestRest: ' the formal soundness results are about the protocol under stated assumptions, not a guarantee about any particular model. Application to real LLMs is empirically motivated and hypothesis-stage. The gating metric is the per-aspect critic-found-bug rate. If a critic does not actually attack, debate collapses to the proposer alone. Agon does not prove your code correct, and does not claim to remove the need for trust.',
     },
     hook: {
         eyebrow: 'On-demand review',
         title: 'Run it when you need it, <em>as one binary.</em>',
-        desc: 'You run Agon when you want a verification pass — against your current Claude session or a diff. It forks the producer (the root transcript stays untouched), spawns an independent critic, runs the protocol, and writes an auditable session to disk. Resolved → proceed. Contested → it surfaces a focused review.',
+        desc: 'You run Agon when you want a verification pass against your current Claude session or a diff. It forks the producer so the root transcript stays untouched, spawns an independent critic, runs the protocol, and writes an auditable session to disk. Resolved attacks let the work proceed. Contested ones surface a focused review.',
         cta: 'See install',
         lines: [
-            { p: '$', cmd: 'latere agon --session-id 9f4c --max-turn 6' },
+            { p: '$', cmd: 'agon --session-id 9f4c --max-turn 6' },
             { p: '↳', l: 'proposer   fork of session 9f4c · root untouched' },
             { p: '↻', l: 'critic     spawned ............... agent-β' },
             { p: '↻', l: 'rounds     R1..Rn ............... 42s' },
@@ -284,19 +284,19 @@ export const en = {
         items: [
             {
                 q: 'Is a debate always one linear thread?',
-                a: 'No. The protocol is a tree, not a transcript. Any contested attack can fork into its own sub-debate where the proposer’s rebuttal becomes the new claim and the critic attacks that. The critic still stakes exactly one leaf across the whole tree, and the judge still inspects only that leaf. Branching is what makes the protocol survive obfuscated arguments — a misleading rebuttal can be cross-examined in its own sub-game instead of being accepted at face value.',
+                a: 'No. The protocol is a tree, not a transcript. Any contested attack can fork into its own sub-debate where the proposer’s rebuttal becomes the new claim and the critic attacks that. The critic still stakes exactly one leaf across the whole tree, and the judge still inspects only that leaf. Branching is what lets the protocol survive obfuscated arguments: a misleading rebuttal can be cross-examined in its own sub-game instead of being accepted at face value.',
             },
             {
-                q: 'Same model on both sides — why is that disqualified?',
-                a: "It is the model debating itself. Cross-examination requires independent failure modes; same weights share the same blind spots and the same lies. Agon's default pairing is cross-family (e.g. one model from vendor A as proposer, another from vendor B as critic). Same-vendor pairings are accepted but flagged in the ledger.",
+                q: 'Same model on both sides: why is that disqualified?',
+                a: "It is the model debating itself. Cross-examination requires independent failure modes; the same weights share the same blind spots and the same lies. Agon's default pairing is cross-family (for example, one model from vendor A as proposer, another from vendor B as critic). Same-vendor pairings are accepted but flagged in the ledger.",
             },
             {
                 q: 'What stops the critic from being lazy?',
-                a: 'The gating metric is per-aspect critic-found-bug rate against a held-out attack suite. If the critic does not actually attack, debate collapses to the proposer alone and Agon will say so on the session line. The metric is the operational definition of "the protocol is working".',
+                a: 'The gating metric is the per-aspect critic-found-bug rate against a held-out attack suite. If the critic does not actually attack, debate collapses to the proposer alone and Agon will say so on the session line. The metric is the operational definition of "the protocol is working".',
             },
             {
                 q: 'Is the judge an LLM too?',
-                a: "Yes, but it inspects only the staked leaf — not the full transcript — and the surfacing layer (contention score, headline) is a pure rule with no LLM in it. The judge's job is local soundness on one claim; the human reads the headline and decides what to look at next.",
+                a: "Yes, but it inspects only the staked leaf, not the full transcript, and the surfacing layer (contention score, headline) is a pure rule with no LLM in it. The judge's job is local soundness on one claim; the human reads the headline and decides what to look at next.",
             },
             {
                 q: 'Does this prove my code correct?',
@@ -304,16 +304,16 @@ export const en = {
             },
             {
                 q: 'How is this different from a second LLM reviewing the first?',
-                a: 'A naive second reviewer produces a soft opinion. Agon forces concrete attacks (input X yields Y violates Z), forces the proposer to defend or concede each one, and stakes one unresolved attack as the decisive leaf. The judge only inspects that leaf — never the whole transcript. The structure is the gate.',
+                a: 'A naive second reviewer produces a soft opinion. Agon forces concrete attacks (input X yields Y, which violates Z), forces the proposer to defend or concede each one, and stakes one unresolved attack as the decisive leaf. The judge only inspects that leaf, never the whole transcript. The structure is the gate.',
             },
         ],
     },
     install: {
         eyebrow: 'Install',
         title: 'One binary. <em>Run it on demand.</em>',
-        lead: 'Local-first, vendor-neutral. Bring your own pair of models; Agon runs the protocol and writes an auditable session to disk.',
-        a: { c: 'one-liner — detects OS/arch, verifies checksum', cmd: 'curl -fsSL https://latere.ai/install.sh | sh' },
-        b: { c: 'run a verification pass on demand — on your current session', cmd: 'latere agon --session-id <session>' },
+        lead: 'Local-first and vendor-neutral. Bring your own pair of models; Agon runs the protocol and writes an auditable session to disk.',
+        a: { c: 'one-liner that detects OS/arch and verifies the checksum', cmd: 'curl -fsSL https://latere.ai/install.sh | sh' },
+        b: { c: 'run a verification pass on your current session', cmd: 'agon --session-id <session>' },
         copy: 'Copy',
         copied: 'Copied',
         ctaPrimary: 'View on GitHub',

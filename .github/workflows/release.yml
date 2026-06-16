@@ -1,5 +1,8 @@
 name: release
 
+# Tag-triggered CLI release via the central reusable pipeline (latere-ai/ci):
+# lint -> test -> goreleaser, driven by this repo's .goreleaser.yaml.
+
 on:
   push:
     tags: ["v*"]
@@ -8,49 +11,6 @@ permissions:
   contents: write
 
 jobs:
-  lint:
-    name: golangci-lint v2 (pre)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.x"
-          cache: true
-      - uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.11.4
-          args: --timeout=3m
-
-  test:
-    name: test (race)
-    needs: lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.x"
-          cache: true
-      - run: go vet ./...
-      - run: go test -race -timeout 120s ./...
-
-  goreleaser:
-    name: goreleaser
-    needs: [lint, test]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.x"
-          cache: true
-      - uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  release:
+    uses: latere-ai/ci/.github/workflows/cli-release.yml@v1
+    secrets: inherit
