@@ -34,6 +34,41 @@ func TestComputeEmptyDiff(t *testing.T) {
 	}
 }
 
+// TestAnalyzePatchDashPlusContentLines guards against undercounting
+// ChangedLines for content lines whose text starts with "-- " or "++ ".
+// git emits a removed "-- foo" line as "--- foo" and an added "++ foo"
+// line as "+++ foo", both inside the @@ hunk; the old header-shape check
+// swallowed them. Also covers a multi-file diff so the per-file hunk
+// reset does not miscount the second file's headers as changes.
+func TestAnalyzePatchDashPlusContentLines(t *testing.T) {
+	patch := "" +
+		"diff --git a/dash.go b/dash.go\n" +
+		"index 365a263..37ddcab 100644\n" +
+		"--- a/dash.go\n" +
+		"+++ b/dash.go\n" +
+		"@@ -1,2 +1,3 @@\n" +
+		" package x\n" +
+		"--- a removed dash line\n" +
+		"+++ an added plus line\n" +
+		"diff --git a/b.go b/b.go\n" +
+		"index 111..222 100644\n" +
+		"--- a/b.go\n" +
+		"+++ b/b.go\n" +
+		"@@ -1 +1 @@\n" +
+		"-old\n" +
+		"+new\n"
+
+	changed, files := analyzePatch(patch)
+	// dash.go: "--- a removed dash line", "+++ an added plus line";
+	// b.go: "-old", "+new" -> 4 changed lines total.
+	if changed != 4 {
+		t.Errorf("ChangedLines: got %d, want 4", changed)
+	}
+	if len(files) != 2 {
+		t.Errorf("Files: got %v, want 2 entries", files)
+	}
+}
+
 func TestComputeWithUntracked(t *testing.T) {
 	dir := t.TempDir()
 	gitInit(t, dir)

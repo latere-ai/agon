@@ -128,16 +128,25 @@ func runGit(ctx context.Context, cwd string, args []string) (string, error) {
 func analyzePatch(patch string) (int, []string) {
 	var changed int
 	files := map[string]struct{}{}
+	// inHunk distinguishes hunk-body +/- lines from file-header lines.
+	// Without it a content line whose text starts with "-- " or "++ "
+	// (emitted by git as "--- ..." / "+++ ...") is mistaken for a
+	// /dev/null header and dropped, undercounting ChangedLines. Each
+	// "diff --git" resets the flag so a later file's headers, which
+	// arrive after a previous file's hunk, are not counted as changes.
+	inHunk := false
 	for _, line := range strings.Split(patch, "\n") {
 		switch {
+		case strings.HasPrefix(line, "diff --git"):
+			inHunk = false
+		case strings.HasPrefix(line, "@@"):
+			inHunk = true
+		case inHunk && (strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-")):
+			changed++
 		case strings.HasPrefix(line, "+++ b/"):
 			files[strings.TrimPrefix(line, "+++ b/")] = struct{}{}
 		case strings.HasPrefix(line, "--- a/"):
 			files[strings.TrimPrefix(line, "--- a/")] = struct{}{}
-		case strings.HasPrefix(line, "+++ ") || strings.HasPrefix(line, "--- "):
-			// header line for /dev/null or other; ignore
-		case strings.HasPrefix(line, "+") || strings.HasPrefix(line, "-"):
-			changed++
 		}
 	}
 	out := make([]string, 0, len(files))
