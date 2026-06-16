@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 export type Theme = 'light' | 'dark' | 'auto';
 export type Locale = 'en' | 'zh';
@@ -69,13 +69,7 @@ export const usePrefsStore = defineStore('prefs', () => {
     else mediaQuery.addListener(onOSChange);
   }
 
-  function toggleTheme() {
-    theme.value = theme.value === 'light' ? 'dark' : theme.value === 'dark' ? 'auto' : 'light';
-  }
-  function setTheme(t: Theme) { theme.value = t; }
   function setLocale(l: Locale) { locale.value = l; }
 
-  const themeIcon = computed(() => theme.value === 'light' ? '☀' : theme.value === 'dark' ? '☾' : '◐');
-
-  return { theme, locale, themeIcon, toggleTheme, setTheme, setLocale };
+  return { theme, locale, setLocale };
 });
