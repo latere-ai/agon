@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"latere.ai/x/agon/internal/ansi"
 )
 
 // TestPrintRenderedPlainPassThrough: when styled=false the bytes are
@@ -38,10 +40,10 @@ func TestPrintRenderedStyledHeadersAndFences(t *testing.T) {
 	got := buf.String()
 
 	for _, want := range []string{
-		ansiBold + ansiCyan + "# Top" + ansiReset,
-		ansiBold + ansiCyan + "## Section" + ansiReset,
-		ansiDim + "```" + ansiReset,
-		ansiDim + "code" + ansiReset,
+		ansi.Bold + ansi.Cyan + "# Top" + ansi.Reset,
+		ansi.Bold + ansi.Cyan + "## Section" + ansi.Reset,
+		ansi.Dim + "```" + ansi.Reset,
+		ansi.Dim + "code" + ansi.Reset,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("styled output missing %q. full output:\n%q", want, got)

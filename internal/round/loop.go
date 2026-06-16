@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"latere.ai/x/agon/internal/agent"
+	"latere.ai/x/agon/internal/ansi"
 	"latere.ai/x/agon/internal/critic"
 	"latere.ai/x/agon/internal/ledger"
 	"latere.ai/x/agon/internal/state"
@@ -63,21 +64,12 @@ type Engine struct {
 	AllowStyleAttacks bool
 }
 
-// ANSI escapes used to decorate progress lines when Styled is true.
-// Kept tiny and self-contained: only the [agon] prefix and role
-// labels are colored. Anything richer drifts toward needing a real
-// status renderer.
+// Role colors used to decorate progress lines when Styled is true.
+// The escape codes themselves live in internal/ansi so the summary
+// package shares the same literals.
 const (
-	ansiReset       = "\x1b[0m"
-	ansiBold        = "\x1b[1m"
-	ansiDim         = "\x1b[2m"
-	ansiCyan        = "\x1b[36m"
-	ansiMagenta     = "\x1b[35m"
-	ansiGreen       = "\x1b[32m"
-	ansiRed         = "\x1b[31m"
-	ansiYellow      = "\x1b[33m"
-	roleCriticColor = ansiMagenta
-	roleProposerCol = ansiGreen
+	roleCriticColor = ansi.Magenta
+	roleProposerCol = ansi.Green
 )
 
 // decorate styles a finished progress line. Cheap string-level
@@ -87,14 +79,14 @@ func (e *Engine) decorate(line string) string {
 	if !e.Styled {
 		return line
 	}
-	line = strings.Replace(line, "[agon]", ansiBold+ansiCyan+"[agon]"+ansiReset, 1)
+	line = strings.Replace(line, "[agon]", ansi.Bold+ansi.Cyan+"[agon]"+ansi.Reset, 1)
 	line = colorRoleWord(line, " critic ", roleCriticColor)
 	line = colorRoleWord(line, " proposer ", roleProposerCol)
-	line = strings.Replace(line, "still running", ansiDim+"still running"+ansiReset, 1)
-	line = strings.Replace(line, "steady state reached", ansiGreen+"steady state reached"+ansiReset, 1)
-	line = strings.Replace(line, "terminated max-turn", ansiYellow+"terminated max-turn"+ansiReset, 1)
+	line = strings.Replace(line, "still running", ansi.Dim+"still running"+ansi.Reset, 1)
+	line = strings.Replace(line, "steady state reached", ansi.Green+"steady state reached"+ansi.Reset, 1)
+	line = strings.Replace(line, "terminated max-turn", ansi.Yellow+"terminated max-turn"+ansi.Reset, 1)
 	for _, w := range []string{"terminated cost-cap", "terminated malformed-output"} {
-		line = strings.Replace(line, w, ansiRed+w+ansiReset, 1)
+		line = strings.Replace(line, w, ansi.Red+w+ansi.Reset, 1)
 	}
 	return line
 }
@@ -108,7 +100,7 @@ func colorRoleWord(line, word, color string) string {
 	if !strings.Contains(line, word) {
 		return line
 	}
-	colored := " " + color + strings.TrimSpace(word) + ansiReset + " "
+	colored := " " + color + strings.TrimSpace(word) + ansi.Reset + " "
 	return strings.Replace(line, word, colored, 1)
 }
 

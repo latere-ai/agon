@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"latere.ai/x/agon/internal/agent"
+	"latere.ai/x/agon/internal/ansi"
 	"latere.ai/x/agon/internal/ledger"
 	"latere.ai/x/agon/internal/state"
 )
@@ -351,9 +352,9 @@ func TestEngineStyledProgressEmitsANSI(t *testing.T) {
 			if tc.styled {
 				// Specific decorations we want to see.
 				for _, want := range []string{
-					ansiBold + ansiCyan + "[agon]" + ansiReset,
-					roleCriticColor + "critic" + ansiReset,
-					roleProposerCol + "proposer" + ansiReset,
+					ansi.Bold + ansi.Cyan + "[agon]" + ansi.Reset,
+					roleCriticColor + "critic" + ansi.Reset,
+					roleProposerCol + "proposer" + ansi.Reset,
 				} {
 					if !strings.Contains(out, want) {
 						t.Errorf("styled output missing %q", want)

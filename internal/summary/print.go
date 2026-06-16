@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"latere.ai/x/agon/internal/ansi"
 )
 
 // IsTerminal reports whether f is attached to an interactive TTY.
@@ -19,16 +21,6 @@ func IsTerminal(f *os.File) bool {
 	}
 	return (info.Mode() & os.ModeCharDevice) != 0
 }
-
-// ANSI escapes are deliberately minimal: bold+cyan for headers and
-// dim for code fences. Anything richer drifts toward needing a real
-// renderer (glamour) and a heavy dep tree.
-const (
-	ansiBold  = "\x1b[1m"
-	ansiDim   = "\x1b[2m"
-	ansiCyan  = "\x1b[36m"
-	ansiReset = "\x1b[0m"
-)
 
 // PrintRendered writes the summary body to w. When styled is true the
 // markdown is decorated with ANSI escapes (headers bold-cyan, fenced
@@ -57,11 +49,11 @@ func renderANSI(body []byte) []byte {
 		switch {
 		case strings.HasPrefix(line, "```"):
 			inFence = !inFence
-			writeWrapped(&out, line, ansiDim)
+			writeWrapped(&out, line, ansi.Dim)
 		case inFence:
-			writeWrapped(&out, line, ansiDim)
+			writeWrapped(&out, line, ansi.Dim)
 		case strings.HasPrefix(line, "#"):
-			writeWrapped(&out, line, ansiBold+ansiCyan)
+			writeWrapped(&out, line, ansi.Bold+ansi.Cyan)
 		default:
 			out.WriteString(line)
 		}
@@ -75,5 +67,5 @@ func renderANSI(body []byte) []byte {
 func writeWrapped(b *bytes.Buffer, line, prefix string) {
 	b.WriteString(prefix)
 	b.WriteString(line)
-	b.WriteString(ansiReset)
+	b.WriteString(ansi.Reset)
 }
