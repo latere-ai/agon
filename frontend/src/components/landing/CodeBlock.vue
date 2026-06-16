@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useContent } from '../../content';
+import { copyText } from '../../lib/clipboard';
 
 const props = defineProps<{ comment: string; command: string }>();
 
@@ -9,10 +10,11 @@ const labels = computed(() => content.value.install);
 const copied = ref(false);
 const lines = computed(() => props.command.split('\n'));
 
-function copy() {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    navigator.clipboard.writeText(props.command);
-  }
+async function copy() {
+  // Only flip to the confirmed state when the copy actually succeeded;
+  // copyText swallows clipboard failures so there is no unhandled
+  // rejection on denied permission or an unfocused document.
+  if (!(await copyText(props.command))) return;
   copied.value = true;
   setTimeout(() => {
     copied.value = false;
