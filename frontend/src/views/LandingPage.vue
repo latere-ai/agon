@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue';
+import { computed } from 'vue';
 import { useHead } from '@unhead/vue';
 import DefaultLayout from '../layouts/DefaultLayout.vue';
 import { useContent } from '../content';
+import { useReveal } from '../lib/reveal';
 import SectionShell from '../components/landing/SectionShell.vue';
 import HeroStage from '../components/landing/HeroStage.vue';
 import ArchitectureSvg from '../components/landing/ArchitectureSvg.vue';
@@ -16,25 +17,7 @@ useHead({
   meta: [{ name: 'description', content: computed(() => content.value.meta.description) }],
 });
 
-onMounted(() => {
-  const els = document.querySelectorAll('.reveal:not(.in)');
-  if (!('IntersectionObserver' in window)) {
-    els.forEach(e => e.classList.add('in'));
-    return;
-  }
-  const io = new IntersectionObserver(
-    entries => {
-      entries.forEach(en => {
-        if (en.isIntersecting) {
-          en.target.classList.add('in');
-          io.unobserve(en.target);
-        }
-      });
-    },
-    { threshold: 0.08, rootMargin: '0px 0px -8% 0px' },
-  );
-  els.forEach(e => io.observe(e));
-});
+useReveal();
 </script>
 
 <template>
