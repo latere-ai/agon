@@ -20,15 +20,15 @@ import (
 // Set it to the worktree root or any writable path; the directory is
 // created if it does not exist.
 type Engine struct {
-	StateDir    string       // parent of sessions/<id>/
-	Cwd         string       // working directory for agent subprocess calls
-	ForkCount   int          // number of independent critic forks to run
-	Proposer    Proposer     // drives the implementation agent
+	StateDir    string        // parent of sessions/<id>/
+	Cwd         string        // working directory for agent subprocess calls
+	ForkCount   int           // number of independent critic forks to run
+	Proposer    Proposer      // drives the implementation agent
 	NewCritic   CriticFactory // creates a critic for each fork
-	MaxRounds   int          // per-fork internal-round cap (1 turn = 2 rounds)
-	CostCap     int          // soft token budget across all forks
-	TaskContext  string       // verbatim task description
-	DiffPatch   string       // unified diff to review
+	MaxRounds   int           // per-fork internal-round cap (1 turn = 2 rounds)
+	CostCap     int           // soft token budget across all forks
+	TaskContext string        // verbatim task description
+	DiffPatch   string        // unified diff to review
 }
 
 // Run executes all forks serially and returns a [Summary].
@@ -160,16 +160,6 @@ func (b *criticBridge) Round(ctx context.Context, in agent.CriticInput) (*agent.
 
 func toInternalTokenUsage(u TokenUsage) agent.TokenUsage {
 	return agent.TokenUsage{
-		Input:       u.Input,
-		Output:      u.Output,
-		CacheCreate: u.CacheCreate,
-		CacheRead:   u.CacheRead,
-	}
-}
-
-// fromInternalTokenUsage converts from internal to public TokenUsage.
-func fromInternalTokenUsage(u agent.TokenUsage) TokenUsage {
-	return TokenUsage{
 		Input:       u.Input,
 		Output:      u.Output,
 		CacheCreate: u.CacheCreate,

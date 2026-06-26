@@ -29,7 +29,7 @@ type stubCritic struct {
 	idx    int
 }
 
-func (s *stubCritic) Round(_ context.Context, in adversarial.CriticInput) (*adversarial.CriticResult, error) {
+func (s *stubCritic) Round(_ context.Context, _ adversarial.CriticInput) (*adversarial.CriticResult, error) {
 	if s.idx >= len(s.rounds) {
 		return &adversarial.CriticResult{
 			Markdown: "# Critic 1 - round 99 attacks\n\naspect: security\n",
@@ -81,7 +81,7 @@ func TestEngineSteadyState(t *testing.T) {
 		NewCritic:   func(_ int) adversarial.Critic { return critic },
 		MaxRounds:   6,
 		CostCap:     1_000_000,
-		TaskContext:  "add user login",
+		TaskContext: "add user login",
 		DiffPatch:   "+password := req.Password",
 	}
 

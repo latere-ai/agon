@@ -31,8 +31,8 @@ type CriticFactory func(forkIdx int) Critic
 
 // ProposerResult is one proposer round's outcome.
 type ProposerResult struct {
-	ForkID   string        // fork session ID (set by FirstRound, reused by NextRound)
-	Response string        // agent's full markdown response
+	ForkID   string // fork session ID (set by FirstRound, reused by NextRound)
+	Response string // agent's full markdown response
 	Usage    TokenUsage
 	USD      float64
 	Duration time.Duration
@@ -43,16 +43,16 @@ type ProposerResult struct {
 // [AssemblePrompt] to combine SystemPrompt, TaskContext, DiffPatch, and
 // PriorRoundFiles into a single string for the underlying agent.
 type CriticInput struct {
-	AspectName      string        // critic's declared topic (e.g. "security")
-	SystemPrompt    string        // aspect + round-contract system prompt
-	CriticIndex     int           // 1-based fork index
-	Round           int           // 1-based internal round number
-	TaskContext     string        // verbatim task description
-	DiffPatch       string        // unified diff of the artifact
+	AspectName      string         // critic's declared topic (e.g. "security")
+	SystemPrompt    string         // aspect + round-contract system prompt
+	CriticIndex     int            // 1-based fork index
+	Round           int            // 1-based internal round number
+	TaskContext     string         // verbatim task description
+	DiffPatch       string         // unified diff of the artifact
 	PriorRoundFiles []RoundFileRef // non-empty from round 3 onward
-	Cwd             string        // working directory
+	Cwd             string         // working directory
 	Deadline        time.Duration
-	Model           string        // override model; empty = default
+	Model           string // override model; empty = default
 }
 
 // RoundFileRef points at a prior round's output file the critic should read.

@@ -82,8 +82,8 @@ func fromInternal(r *agent.ProposerResult) *adversarial.ProposerResult {
 type CriticOption func(*agent.ClaudeCritic)
 
 // WithCriticModel overrides the claude model used by the critic.
-func WithCriticModel(model string) CriticOption {
-	return func(c *agent.ClaudeCritic) { /* stored per-round via CriticInput.Model */ }
+func WithCriticModel(_ string) CriticOption {
+	return func(_ *agent.ClaudeCritic) { /* stored per-round via CriticInput.Model */ }
 }
 
 // NewCritic returns an [adversarial.Critic] that invokes `claude -p`
