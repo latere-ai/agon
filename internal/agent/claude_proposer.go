@@ -26,6 +26,13 @@ type ClaudeProposer struct {
 	Deadline time.Duration
 	Verbose  bool
 	EventOut io.Writer
+
+	// DisallowedTools, when non-empty, is passed to claude as
+	// --disallowedTools so the proposer cannot use those tools. Callers
+	// embedding agon as a verifier set this (read-only) to guarantee the
+	// proposer argues and concedes but never edits the working tree it runs
+	// in. Empty (the default) preserves agon's standalone behavior.
+	DisallowedTools []string
 }
 
 // TokenUsage captures the per-call token breakdown reported by claude's
@@ -143,6 +150,7 @@ func (j *claudeJSON) usage() TokenUsage {
 // FirstRound creates a fork and processes R1 in one shot.
 func (p *ClaudeProposer) FirstRound(ctx context.Context, pointer string) (*ProposerResult, error) {
 	args := append([]string{"--resume", p.RootID, "--fork-session"}, p.outputArgs()...)
+	args = append(args, p.toolArgs()...)
 	args = append(args, "--print", pointer)
 	if p.Model != "" {
 		args = append(args, "--model", p.Model)
@@ -153,6 +161,7 @@ func (p *ClaudeProposer) FirstRound(ctx context.Context, pointer string) (*Propo
 // NextRound continues an existing fork.
 func (p *ClaudeProposer) NextRound(ctx context.Context, forkID, pointer string) (*ProposerResult, error) {
 	args := append([]string{"--resume", forkID}, p.outputArgs()...)
+	args = append(args, p.toolArgs()...)
 	args = append(args, "--print", pointer)
 	if p.Model != "" {
 		args = append(args, "--model", p.Model)
@@ -167,6 +176,15 @@ func (p *ClaudeProposer) outputArgs() []string {
 		return []string{"--output-format", "stream-json", "--verbose"}
 	}
 	return []string{"--output-format", "json"}
+}
+
+// toolArgs returns the --disallowedTools args when DisallowedTools is set, so
+// the proposer cannot invoke those tools. Empty yields no args.
+func (p *ClaudeProposer) toolArgs() []string {
+	if len(p.DisallowedTools) == 0 {
+		return nil
+	}
+	return []string{"--disallowedTools", strings.Join(p.DisallowedTools, ",")}
 }
 
 func (p *ClaudeProposer) run(ctx context.Context, args []string, expectFork string) (*ProposerResult, error) {

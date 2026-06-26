@@ -75,6 +75,11 @@ a numbered GA gate from spec 27 and writes its outcome into
 - [35 Release-notes channel](35-release-notes-channel.md) - decides where probe/gate outcomes live
 - [36 Probe: UserPromptSubmit manual trigger](36-probe-userpromptsubmit-manual-trigger.md) - FAIL; manual trigger can't be byte-identical
 
+## Public API + embedding
+
+- [37 Public `pkg/adversarial` API](37-pkg-public-api.md) - importable engine, interfaces, result types
+- [38 Read-only proposer option](38-read-only-proposer.md) - `WithProposerReadOnly` for embedders sharing the real tree
+
 ## Status
 
 All specs are marked ✅ implemented. Spec status lines individually

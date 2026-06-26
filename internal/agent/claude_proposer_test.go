@@ -20,6 +20,18 @@ func TestClaudeProposer_OutputArgs(t *testing.T) {
 	}
 }
 
+func TestClaudeProposer_ToolArgs(t *testing.T) {
+	// Default: no tool restriction, no args.
+	if got := (&ClaudeProposer{}).toolArgs(); got != nil {
+		t.Errorf("default toolArgs = %v, want nil", got)
+	}
+	// With a denylist: a single comma-joined --disallowedTools arg.
+	p := &ClaudeProposer{DisallowedTools: []string{"Write", "Edit", "Bash"}}
+	if got := strings.Join(p.toolArgs(), " "); got != "--disallowedTools Write,Edit,Bash" {
+		t.Errorf("toolArgs = %q", got)
+	}
+}
+
 func TestClaudeProposer_NextRound_HappyPath(t *testing.T) {
 	if _, err := os.Stat("/usr/bin/env"); err != nil {
 		t.Skip("posix env required")

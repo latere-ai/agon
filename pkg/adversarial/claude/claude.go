@@ -29,6 +29,21 @@ func WithProposerDeadline(d time.Duration) ProposerOption {
 	return func(p *agent.ClaudeProposer) { p.Deadline = d }
 }
 
+// proposerReadOnlyTools are the mutating tools disabled by
+// [WithProposerReadOnly]. Bash is included because it can write to the tree.
+var proposerReadOnlyTools = []string{"Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"}
+
+// WithProposerReadOnly restricts the proposer to read-only tools (no Write,
+// Edit, MultiEdit, NotebookEdit, or Bash). Use it when the proposer runs in a
+// working tree that must not be modified — e.g. an embedded verifier whose
+// proposer shares the real task worktree. The proposer can still read the code
+// to argue and concede; it simply cannot edit it.
+func WithProposerReadOnly() ProposerOption {
+	return func(p *agent.ClaudeProposer) {
+		p.DisallowedTools = append([]string(nil), proposerReadOnlyTools...)
+	}
+}
+
 // NewProposer returns an [adversarial.Proposer] that drives the
 // implementation-agent clone via `claude --resume <sessionID> --fork-session`.
 // sessionID is the claude session ID produced by the implementation run
