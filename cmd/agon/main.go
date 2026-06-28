@@ -17,11 +17,11 @@ import (
 
 	"latere.ai/x/agon/internal/agent"
 	"latere.ai/x/agon/internal/cli"
-	"latere.ai/x/agon/internal/input"
 	"latere.ai/x/agon/internal/ledger"
 	"latere.ai/x/agon/internal/round"
 	"latere.ai/x/agon/internal/state"
 	"latere.ai/x/agon/internal/summary"
+	"latere.ai/x/agon/pkg/adversarial/input"
 )
 
 // Set via -ldflags by goreleaser / Makefile.

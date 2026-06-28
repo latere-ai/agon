@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"latere.ai/x/agon/internal/input"
+	"latere.ai/x/agon/pkg/adversarial/input"
 )
 
 func TestPreflightCostCapMin(t *testing.T) {

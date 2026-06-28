@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"latere.ai/x/agon/internal/input"
+	"latere.ai/x/agon/pkg/adversarial/input"
 )
 
 // Plan summarizes what one agon run will do; produced by Preflight.
