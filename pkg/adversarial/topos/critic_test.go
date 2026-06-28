@@ -81,10 +81,12 @@ func securityInput() adversarial.CriticInput {
 	}
 }
 
-// TestFactoryYieldsCritic pins that NewCriticFactory returns an
-// adversarial.Critic (compile-time + runtime).
+// TestFactoryYieldsCritic pins that NewCriticFactory returns a usable
+// adversarial.Critic for a fork index.
 func TestFactoryYieldsCritic(t *testing.T) {
-	var _ adversarial.Critic = atopos.NewCriticFactory(atopos.Config{})(1)
+	if atopos.NewCriticFactory(atopos.Config{})(1) == nil {
+		t.Fatal("NewCriticFactory returned a nil critic")
+	}
 }
 
 // TestRoundReturnsModelTextVerbatim is the backend-swap contract: the topos
