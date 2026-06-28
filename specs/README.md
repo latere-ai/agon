@@ -79,12 +79,14 @@ a numbered GA gate from spec 27 and writes its outcome into
 
 - [37 Public `pkg/adversarial` API](37-pkg-public-api.md) - importable engine, interfaces, result types
 - [38 Read-only proposer option](38-read-only-proposer.md) - `WithProposerReadOnly` for embedders sharing the real tree
+- [39 Topos-backed critic](39-topos-backed-critic.md) - `pkg/adversarial/topos` critic over `latere.ai/x/topos` (Lux/Cella); proposer stays on the CLI
 
 ## Status
 
-All specs are marked ✅ implemented. Spec status lines individually
-record what's verified, what's deferred, and what was changed during
-the release cut.
+Specs 01-38 are marked ✅ implemented; spec 39 is `drafted` (a
+post-release proposal, not yet a contract). Spec status lines
+individually record what's verified, what's deferred, and what was
+changed during the release cut.
 
 ## Related research
 
