@@ -283,11 +283,11 @@ export const en: LandingContent = {
 
   hook: {
     eyebrow: 'On-demand review',
-    title: 'Run it when you need it, <em>as one binary.</em>',
+    title: 'Run it when you need it, <em>from your terminal.</em>',
     desc: 'You run Agon when you want a verification pass against your current Claude session or a diff. It forks the producer so the root transcript stays untouched, spawns an independent critic, runs the protocol, and writes an auditable session to disk. Resolved attacks let the work proceed. Contested ones surface a focused review.',
     cta: 'See install',
     lines: [
-      { p: '$', cmd: 'agon --session-id 9f4c --max-turn 6' },
+      { p: '$', cmd: 'latere agon --forks 1 --max-rounds 6' },
       { p: '↳', l: 'proposer   fork of session 9f4c · root untouched' },
       { p: '↻', l: 'critic     spawned ............... agent-β' },
       { p: '↻', l: 'rounds     R1..Rn ............... 42s' },
@@ -330,10 +330,10 @@ export const en: LandingContent = {
 
   install: {
     eyebrow: 'Install',
-    title: 'One binary. <em>Run it on demand.</em>',
-    lead: 'Local-first and vendor-neutral. Bring your own pair of models; Agon runs the protocol and writes an auditable session to disk.',
-    a: { c: 'one-liner that detects OS/arch and verifies the checksum', cmd: 'curl -fsSL https://latere.ai/install.sh | sh' },
-    b: { c: 'run a verification pass on your current session', cmd: 'agon --session-id <session>' },
+    title: 'One CLI. <em>Run it on demand.</em>',
+    lead: 'Local-first and vendor-neutral. Agon ships in the latere CLI: sign in once, then run the protocol against your latest session and get an auditable review on disk.',
+    a: { c: 'install the latere CLI, then sign in', cmd: 'curl -fsSL https://latere.ai/install.sh | sh && latere auth login' },
+    b: { c: 'run a verification pass on your latest session', cmd: 'latere agon' },
     copy: 'Copy',
     copied: 'Copied',
     ctaPrimary: 'View on GitHub',

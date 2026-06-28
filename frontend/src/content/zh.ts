@@ -283,11 +283,11 @@ export const zh: LandingContent = {
 
   hook: {
     eyebrow: '按需评审',
-    title: '需要时再运行，<em>一个二进制。</em>',
+    title: '需要时再运行，<em>就在你的终端里。</em>',
     desc: '当你需要一次验证时，由你来运行 Agon，对象是你当前的 Claude 会话或一份 diff。它会派生（fork）生产方（根记录保持不变），启动一个独立评审，运行协议，并把一次可审计的会话写入磁盘。已化解 → 继续。存争议 → 浮现一份聚焦评审。',
     cta: '查看安装',
     lines: [
-      { p: '$', cmd: 'agon --session-id 9f4c --max-turn 6' },
+      { p: '$', cmd: 'latere agon --forks 1 --max-rounds 6' },
       { p: '↳', l: 'proposer   fork of session 9f4c · root untouched' },
       { p: '↻', l: 'critic     spawned ............... agent-β' },
       { p: '↻', l: 'rounds     R1..Rn ............... 42s' },
@@ -330,10 +330,10 @@ export const zh: LandingContent = {
 
   install: {
     eyebrow: '安装',
-    title: '一个二进制。<em>按需运行。</em>',
-    lead: '本地优先、厂商中立。自带你的一对模型；Agon 运行协议并把一次可审计的会话写入磁盘。',
-    a: { c: '一行命令，自动检测 OS/架构并校验 checksum', cmd: 'curl -fsSL https://latere.ai/install.sh | sh' },
-    b: { c: '按需运行一次验证，针对你当前的会话', cmd: 'agon --session-id <session>' },
+    title: '一个 CLI。<em>按需运行。</em>',
+    lead: '本地优先、厂商中立。Agon 随 latere CLI 一同发布：登录一次，即可针对你最近的会话运行协议，并把一次可审计的评审写入磁盘。',
+    a: { c: '安装 latere CLI，然后登录', cmd: 'curl -fsSL https://latere.ai/install.sh | sh && latere auth login' },
+    b: { c: '针对你最近的会话运行一次验证', cmd: 'latere agon' },
     copy: '复制',
     copied: '已复制',
     ctaPrimary: '在 GitHub 查看',
