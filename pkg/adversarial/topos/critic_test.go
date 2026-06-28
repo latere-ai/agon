@@ -2,8 +2,10 @@ package topos_test
 
 import (
 	"context"
+	"errors"
 	"io"
 	"testing"
+	"time"
 
 	"latere.ai/x/agon/internal/critic"
 	adversarial "latere.ai/x/agon/pkg/adversarial"
@@ -48,6 +50,16 @@ func (s *scriptStream) Recv() (models.Event, error) {
 }
 
 func (s *scriptStream) Close() error { return nil }
+
+// blockingBrain never emits; it blocks until the request context is cancelled,
+// then surfaces ctx.Err(). It lets a test observe whether Round's per-round
+// deadline actually bounds the model call.
+type blockingBrain struct{}
+
+func (blockingBrain) Stream(ctx context.Context, _ models.Request) (models.Stream, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
 
 func runOnce(t *testing.T, cfg atopos.Config, in adversarial.CriticInput) *adversarial.CriticResult {
 	t.Helper()
@@ -94,6 +106,45 @@ func TestRoundReturnsModelTextVerbatim(t *testing.T) {
 	}
 	if attacks[0].AttackID != "c1-1" {
 		t.Errorf("attack id: got %q, want c1-1", attacks[0].AttackID)
+	}
+}
+
+// TestRoundHonorsDeadline pins the per-round budget added in 40e093f:
+// CriticInput.Deadline is a time.Duration (a budget from the moment Round is
+// called), so Round applies it via context.WithTimeout and a model that never
+// returns is cancelled rather than running unbounded. A tiny positive deadline
+// must surface context.DeadlineExceeded promptly. This also nails the semantics
+// a critic doubted: Deadline is a duration, not an absolute timestamp, so no
+// time.Unix/time.Until conversion is involved.
+func TestRoundHonorsDeadline(t *testing.T) {
+	in := securityInput()
+	in.Deadline = 20 * time.Millisecond
+
+	start := time.Now()
+	_, err := atopos.NewCriticFactory(atopos.Config{Brain: blockingBrain{}})(1).
+		Round(context.Background(), in)
+	elapsed := time.Since(start)
+
+	if err == nil {
+		t.Fatal("expected a deadline error, got nil (round ran unbounded)")
+	}
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context.DeadlineExceeded in chain, got %v", err)
+	}
+	if elapsed > time.Second {
+		t.Fatalf("deadline not honored: round blocked %v on a 20ms budget", elapsed)
+	}
+}
+
+// TestRoundWithoutDeadlineRunsToCompletion is the zero-value branch: Deadline=0
+// (the natural zero value of a duration) means "no per-round cap", so a brain
+// that returns normally completes. Together with TestRoundHonorsDeadline this
+// covers both sides of the `if in.Deadline > 0` guard.
+func TestRoundWithoutDeadlineRunsToCompletion(t *testing.T) {
+	in := securityInput() // Deadline left at its zero value
+	res := runOnce(t, atopos.Config{Brain: scriptedBrain{text: cannedR1}}, in)
+	if res.Markdown != cannedR1 {
+		t.Fatalf("markdown not verbatim with no deadline:\n got %q\nwant %q", res.Markdown, cannedR1)
 	}
 }
 
