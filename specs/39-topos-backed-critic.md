@@ -102,6 +102,7 @@ import (
 
     "latere.ai/x/agon/pkg/adversarial"
     xtopos "latere.ai/x/topos"
+    "latere.ai/x/topos/models"
     "latere.ai/x/topos/sandbox"
 )
 
@@ -109,7 +110,10 @@ import (
 type Config struct {
     Model   xtopos.ModelOptions // Lux, Direct, or Fake
     Sandbox sandbox.Provider    // nil uses topos's local sandbox
-    Tools   []string            // read-only set; defaults to read, grep, glob
+    Brain   models.Model        // optional: overrides Model; used by tests to
+                                 // inject a scripted model (topos Options.Brain)
+    Tools   []string            // tool grant; nil means no tools (read-only by
+                                 // exclusion, see "Read-only posture" below)
 }
 
 // NewCriticFactory returns an adversarial.CriticFactory whose critics run one
@@ -122,26 +126,45 @@ func NewCriticFactory(cfg Config) adversarial.CriticFactory
 
 Each `Critic.Round(ctx, in adversarial.CriticInput)` call:
 
-1. Assembles the critic prompt with the existing
-   `pkg/adversarial/critic.AssemblePrompt(in, aspects)`, so the protocol and
-   output format are byte-for-byte the same contract the CLI critics follow
-   (spec 13, 14, 15). The backend changes; the protocol does not.
-2. Builds a single read-only `xtopos.AgentSpec` whose `SystemPrompt` is
-   `in.SystemPrompt` and whose `Tools` are the read-only set (read, grep, glob;
-   no write, edit, or bash). This is the topos-native equivalent of
-   `CodexCritic`'s `--sandbox read-only`, enforced by the runtime rather than a
-   CLI flag, and is consistent with spec 38's read-only posture applied to the
-   critic side.
+1. Assembles the agent prompt with the existing public
+   `adversarial.AssemblePrompt(in)` (it lives in the `adversarial` package, not a
+   separate `critic` package). The engine has already built the aspect +
+   round-contract system text into `in.SystemPrompt`; `AssemblePrompt` combines
+   that with `TaskContext`, `DiffPatch`, and `PriorRoundFiles` into a single
+   string. So the protocol and output format are byte-for-byte the same contract
+   the CLI critics follow (spec 13, 14, 15). The backend changes; the protocol
+   does not.
+2. Builds a single `xtopos.AgentSpec`. The whole assembled string is the agent's
+   task (see step 3), so `SystemPrompt` is left empty (setting it to
+   `in.SystemPrompt` would double the system text, which is already at the front
+   of the assembled string). `Tools` is the read-only grant (see "Read-only
+   posture").
 3. Runs it through the public Runner:
-   `xtopos.NewRunner(Options{SessionID, Model, Sandbox}).Run(ctx, Region{Autonomy: Pinned, Entry: spec}, prompt)`.
+   `xtopos.NewRunner(Options{SessionID, Model, Sandbox, Brain}).Run(ctx, Region{Autonomy: Pinned, Entry: spec}, adversarial.AssemblePrompt(in))`.
    A single-agent `Pinned` region with no peers runs the entry agent once and
    does no delegation; critics do not fan out internally.
-4. Maps `RunResult.Final` to `CriticResult.Text` and the topos usage to
-   `adversarial.TokenUsage`.
+4. Maps `RunResult.Final` to `CriticResult.Markdown`. Token usage is NOT mapped:
+   topos's public `RunResult` is `{Lineage, Final}` and exposes no usage
+   (`runtime/loop` accumulates `TotalUsage` internally but drops it at the public
+   boundary), so `CriticResult.Usage`/`Tokens`/`USD` stay zero until topos
+   surfaces usage (OQ-3).
 
-The returned text must parse through the same `critic.ParseAttacks` as the
-claude and codex critics (spec 14). The topos critic is a backend swap, verified
-by feeding identical input to both paths and comparing the parsed `Record` set.
+The critic returns the model's text verbatim as `CriticResult.Markdown`; it does
+NOT parse attacks. The engine parses the markdown later via the same parser used
+for the claude and codex critics (`internal/critic.ParseAttacks`, spec 14). The
+topos critic is a backend swap, verified by feeding a canned attack block through
+a scripted `Brain` and confirming the returned markdown parses into the same
+`Record` set as the other backends.
+
+### Read-only posture
+
+topos v0.0.5 registers exactly one builtin tool, `bash` (`harness/tools/bash.go`),
+and no `read`/`grep`/`glob` tools. So the read-only equivalent of `CodexCritic`'s
+`--sandbox read-only` is to grant the critic agent NO tools (an empty/non-`bash`
+`AgentSpec.Tools`): with no `bash` grant the runtime gives the agent no way to
+execute or mutate anything. The critic reasons over the diff, which is already in
+the assembled prompt. If a future topos adds read-only file tools, `Config.Tools`
+lets an embedder opt into them; the default stays "no tools" (OQ-4).
 
 ### Working tree
 
@@ -171,25 +194,38 @@ Exact Cella workspace wiring is deferred (OQ-1).
   the topos lineage node IDs so an embedder can correlate critic forks with its
   own graph (wallfacer renders lineage in GraphCanvas). Likely a follow-up; out
   of scope here.
+- OQ-3: Token usage. topos's public `RunResult` exposes no usage, so a topos
+  critic reports zero tokens and zero USD. That excludes topos critics from the
+  engine's cost-cap accounting (spec 20). Fixing it needs a topos-side change
+  (surface `loop.Result.TotalUsage` on the public `RunResult`, or emit a usage
+  event the embedder can sum via `Options.Observer`). Until then the topos critic
+  is sound for correctness but not for cost-cap; tracked for Phase 2 / production.
+- OQ-4: Read-only file tools. topos has only a `bash` builtin, so the read-only
+  critic runs with no tools and sees only the prompt-embedded diff (it cannot
+  open files the diff does not touch, unlike the codex critic's read-only
+  sandbox). If that breadth matters, topos needs read-only file tools; defer
+  until a real critic needs to read beyond the diff.
 
 ## Phasing / Acceptance Criteria
 
 Phase 1 (package plus tests, no embedder wiring):
 
 - `pkg/adversarial/topos.NewCriticFactory(cfg)` returns a `CriticFactory` whose
-  critics implement `adversarial.Critic`. _(tested with `ModelFake` for
+  critics implement `adversarial.Critic`. _(tested with a scripted `Brain` for
   determinism)_
-- A critic round drives one read-only topos agent and returns `CriticResult.Text`
-  that `critic.ParseAttacks` parses into the same `Record` shape as the claude
-  and codex critics on identical input. _(tested with `ModelFake` returning a
-  canned attack block)_
-- The topos critic is granted no write, edit, or bash tools. _(tested)_
+- A critic round drives one topos agent and returns `CriticResult.Markdown` that
+  `internal/critic.ParseAttacks` parses into the same `Record` shape as the
+  claude and codex critics on identical input. _(tested with a scripted `Brain`
+  returning a canned attack block)_
+- The topos critic is granted no `bash` tool (no tools by default), so the
+  runtime gives it no way to execute or mutate the tree. _(tested via the default
+  tool grant)_
 - A boundary test asserts that only `pkg/adversarial/topos` imports
-  `latere.ai/x/topos`; `pkg/adversarial` and `cmd/agon` do not. _(tested, mirrors
-  wallfacer's `boundary_test.go`)_
+  `latere.ai/x/topos` (root or subpackage); `pkg/adversarial` and `cmd/agon` do
+  not. _(tested, adapts wallfacer's `boundary_test.go`)_
 - `cmd/agon` build and the existing probe and unit suites are unchanged, and the
   binary does not link topos. _(existing tests pass; verified via `go list -deps
-  ./cmd/agon`)_
+  ./cmd/agon | grep topos` returning empty)_
 
 Phase 2 (validate from a real importer):
 
