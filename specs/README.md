@@ -79,7 +79,7 @@ a numbered GA gate from spec 27 and writes its outcome into
 
 - [37 Public `pkg/adversarial` API](37-pkg-public-api.md) - importable engine, interfaces, result types
 - [38 Read-only proposer option](38-read-only-proposer.md) - `WithProposerReadOnly` for embedders sharing the real tree
-- [39 Topos-backed critic](39-topos-backed-critic.md) - `pkg/adversarial/topos` critic over `latere.ai/x/topos` (Lux/Cella); proposer stays on the CLI
+- [39 Topos-backed critic](39-topos-backed-critic.md) - `pkg/adversarial/topos` critic over `latere.ai/x/topos` (Lux/Cella); proposer stays on the CLI (phase 1 implemented; phase 2 wallfacer wiring pending)
 - [40 Public `pkg/adversarial/input`](40-pkg-input-public.md) - ✅ promote `internal/input` (transcript + diff) so embedders can build a `VerifyInput` without reimplementing it
 
 ## Status

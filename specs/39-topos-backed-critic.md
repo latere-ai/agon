@@ -232,3 +232,28 @@ Phase 2 (validate from a real importer):
 - wallfacer's verifier path constructs the topos critic factory (`ModelFake` in
   tests, Lux in prod) and hands it to agon's `Engine` or `Verifier`. This is the
   external-importer smoke test, mirroring spec 37 Phase 2.
+
+## Outcome
+
+Phase 1 implemented in `abb87b2`. `pkg/adversarial/topos.NewCriticFactory`
+returns a `CriticFactory` whose critics run one `Pinned` single-agent topos
+region per round over `adversarial.AssemblePrompt(in)` and return
+`RunResult.Final` as `CriticResult.Markdown`. `Config` carries `Model`,
+`Sandbox`, `Brain` (scripted-model test seam), and `Tools` (nil default = no
+grant = read-only). `go.mod` gained `require latere.ai/x/topos v0.0.5` (resolves
+from the public proxy; no replace, matching wallfacer).
+
+Tests (`critic_test.go`, scripted `Brain`, network-free): factory yields an
+`adversarial.Critic`; a round returns the model text verbatim and it parses via
+`internal/critic.Parse` into the expected `Record`; usage is zero (OQ-3, pinned
+so a future fix flips it deliberately); the read-only posture grants no tools
+(asserted on public lineage `Grants`, with an explicit-`bash` control).
+`boundary_test.go`: only `pkg/adversarial/topos` imports topos, and
+`cmd/agon`'s full dependency closure has zero topos packages (verified:
+`go list -deps latere.ai/x/agon/cmd/agon | grep -c topos` = 0). Full suite, vet,
+and gofumpt pass.
+
+Phase 2 (wallfacer external-importer wiring) remains; spec stays `drafted` until
+then. Open: OQ-3 (topos usage surfacing, blocks cost-cap accounting for topos
+critics) and OQ-4 (read-only file tools beyond the prompt diff) are topos-side
+changes.
