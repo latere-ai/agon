@@ -1,6 +1,6 @@
 ---
 title: Public pkg/adversarial/input package
-status: drafted
+status: complete
 depends_on:
   - specs/37-pkg-public-api.md
 affects:
@@ -148,3 +148,13 @@ replacements pass."
 - An external module can import `latere.ai/x/agon/pkg/adversarial/input` and call
   `LocateTranscript` + `Compute`. _(smoke: covered when latere-cli's local
   subcommand lands; not blocking this spec)_
+
+## Outcome
+
+Implemented in `e68d072`. The five files moved with `git mv` (tracked as pure
+renames, no content change) to `pkg/adversarial/input`; the three importers
+(`cmd/agon/main.go`, `internal/cli/preflight.go`, `preflight_more_test.go`)
+rewired to the new path. `cmd/agon`'s import group was re-sorted (the new path
+sorts after the `internal/*` imports). `internal/input` no longer exists.
+`go build ./...`, `go vet ./...`, `go test ./...`, and gofumpt all pass; exported
+surface and behavior are unchanged. The local-track input blocker is cleared.
