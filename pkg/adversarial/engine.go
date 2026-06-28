@@ -77,6 +77,14 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 		headline = h.Claim
 	}
 
+	// Persist the session's terminal artifacts (summary.md + end.json) so
+	// embedders get the same on-disk record the CLI writes — the token usage,
+	// termination, and attack stats. Best-effort: a write failure must not
+	// discard a completed debate. Without this the library path left no
+	// end.json, so callers could not tell a finished run from a running one
+	// and saw zero token usage.
+	_ = summary.Persist(sumRes, agg, 0)
+
 	out := &Summary{
 		Termination: string(sumRes.Termination),
 		Unresolved:  sumRes.Unresolved,

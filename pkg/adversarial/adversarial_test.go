@@ -2,6 +2,8 @@ package adversarial_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -122,4 +124,32 @@ type noopVerifier struct{}
 
 func (noopVerifier) Verify(_ context.Context, _ adversarial.VerifyInput) (*adversarial.VerifyResult, error) {
 	return nil, nil
+}
+
+// TestEngineRun_WritesEndJSON verifies the library path persists the session's
+// terminal end.json (summary.md too) like the CLI does, so embedders can tell a
+// finished run from a running one and read its token usage.
+func TestEngineRun_WritesEndJSON(t *testing.T) {
+	critic := &stubCritic{rounds: []string{"# Critic 1 - round 1 attacks\n\naspect: security\n"}}
+	proposer := &stubProposer{forkID: "fork-xyz", reply: "looks fine"}
+	eng := &adversarial.Engine{
+		StateDir:    t.TempDir(),
+		Cwd:         t.TempDir(),
+		ForkCount:   1,
+		Proposer:    proposer,
+		NewCritic:   func(_ int) adversarial.Critic { return critic },
+		MaxRounds:   2,
+		CostCap:     1_000_000,
+		TaskContext: "add login",
+		DiffPatch:   "+x := 1",
+	}
+	sum, err := eng.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Run: %v", err)
+	}
+	for _, name := range []string{"end.json", "summary.md"} {
+		if _, err := os.Stat(filepath.Join(sum.SessionDir, name)); err != nil {
+			t.Errorf("expected %s written by the library path: %v", name, err)
+		}
+	}
 }
