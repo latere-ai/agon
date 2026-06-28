@@ -1,6 +1,6 @@
 ---
 title: Topos-backed critic
-status: drafted
+status: implemented
 depends_on:
   - specs/37-pkg-public-api.md
   - specs/38-read-only-proposer.md
@@ -229,9 +229,12 @@ Phase 1 (package plus tests, no embedder wiring):
 
 Phase 2 (validate from a real importer):
 
-- wallfacer's verifier path constructs the topos critic factory (`ModelFake` in
-  tests, Lux in prod) and hands it to agon's `Engine` or `Verifier`. This is the
-  external-importer smoke test, mirroring spec 37 Phase 2.
+- An external importer constructs the topos critic factory and hands it to agon's
+  `Engine`/`Verifier`, exercising the path end-to-end against a live model. This
+  was satisfied by latere-cli's `latere agon` subcommand rather than the
+  originally-envisioned wallfacer path: it builds `topos.NewCriticFactory` with
+  `ModelLux` and runs the engine. See latere-cli
+  `specs/agon-local-subcommand.md`.
 
 ## Outcome
 
@@ -257,7 +260,10 @@ so a future fix flips it deliberately); the read-only posture grants no tools
 `go list -deps latere.ai/x/agon/cmd/agon | grep -c topos` = 0). Full suite, vet,
 and gofumpt pass.
 
-Phase 2 (wallfacer external-importer wiring) remains; spec stays `drafted` until
-then. Open: OQ-3 (topos usage surfacing, blocks cost-cap accounting for topos
-critics) and OQ-4 (read-only file tools beyond the prompt diff) are topos-side
+Phase 2 satisfied (2026-06-28) by latere-cli's `latere agon` subcommand, a real
+external importer that constructs the topos critic factory (`ModelLux`) and runs
+agon's `Engine`. Verified live: a debate against a real session drove a topos
+critic through Lux to `claude-sonnet-4-6` and the engine parsed the returned
+attacks. Open: OQ-3 (topos usage surfacing, blocks cost-cap accounting for topos
+critics) and OQ-4 (read-only file tools beyond the prompt diff) remain topos-side
 changes.
