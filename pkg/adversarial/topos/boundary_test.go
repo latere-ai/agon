@@ -40,19 +40,3 @@ func TestOnlyToposPackageImportsTopos(t *testing.T) {
 		t.Errorf("only %s may import topos:\n%s", allowed, strings.Join(offenders, "\n"))
 	}
 }
-
-// TestCmdAgonDoesNotLinkTopos asserts topos is absent from the shipped binary's
-// full dependency closure (not just direct imports), so the require added for
-// the opt-in critic does not bloat or change cmd/agon.
-func TestCmdAgonDoesNotLinkTopos(t *testing.T) {
-	out, err := exec.Command("go", "list", "-deps", "latere.ai/x/agon/cmd/agon").CombinedOutput()
-	if err != nil {
-		t.Fatalf("go list -deps: %v\n%s", err, out)
-	}
-	for line := range strings.SplitSeq(string(out), "\n") {
-		dep := strings.TrimSpace(line)
-		if dep == "latere.ai/x/topos" || strings.HasPrefix(dep, "latere.ai/x/topos/") {
-			t.Errorf("cmd/agon links topos: %s", dep)
-		}
-	}
-}

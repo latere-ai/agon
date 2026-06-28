@@ -1,15 +1,15 @@
 # agon
 
-Adversarial review for Claude Code coding sessions.
+Adversarial review for Claude Code coding sessions, as a Go engine and
+protocol.
 
-After Claude finishes a task, `agon` forks the session for one or
-more critic agents (Codex by default), runs a multi-round
-cross-examination per critic, applies any concessions the proposer
-makes, and surfaces only the unresolved disputes for human attention.
-Each critic picks its own attack topic in round 1 (security, perf,
-internal-consistency, evidence-gap, ...); later critics are told
-which topics are taken and pick something else. No agon content
-ever lands in the root Claude session - agon happens in branched
+After Claude finishes a task, agon forks the session for one or more
+critic agents, runs a multi-round cross-examination per critic, applies
+any concessions the proposer makes, and surfaces only the unresolved
+disputes for human attention. Each critic picks its own attack topic in
+round 1 (security, perf, internal-consistency, evidence-gap, ...); later
+critics are told which topics are taken and pick something else. No agon
+content ever lands in the root Claude session - agon happens in branched
 forks off the root.
 
 Design and per-component contracts live under [specs/](specs/) -
@@ -17,91 +17,48 @@ start at [specs/README.md](specs/README.md) for the index.
 Release-cut evidence (probe outcomes, smoke recordings) is committed
 to [release-notes-v0.0.1.md](release-notes-v0.0.1.md).
 
-## Installation
+## The CLI is `latere agon`
+
+The standalone `agon` binary has been sunset. The full-fidelity CLI now
+ships inside [latere-cli](https://github.com/latere-ai/latere-cli) as
+`latere agon`, which embeds this engine, forks your real Claude Code
+session as the proposer, and routes critics through Lux on your Latere
+identity:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/latere-ai/agon/main/install.sh | sh
+latere auth login   # once
+latere agon         # review the latest session under the cwd
 ```
 
-The script detects your OS / arch, fetches the latest release tarball
-from
-[github.com/latere-ai/agon/releases](https://github.com/latere-ai/agon/releases),
-verifies the sha256 checksum, and installs `agon` to `/usr/local/bin`
-(via `sudo` if needed). Knobs:
+See the [latere agon guide](https://github.com/latere-ai/latere-cli/blob/main/docs/agon.md)
+for flags, exit codes, and how it works.
 
-```sh
-AGON_VERSION=v0.0.1-rc2  # pin a specific tag; default: latest
-AGON_PREFIX=$HOME/.local # binary lands at $AGON_PREFIX/bin
+## Embedding the engine
+
+This repository is the importable engine. Implement [`Proposer`] and
+[`Critic`], wire them into an `Engine`, and call `Run`:
+
+```go
+import adversarial "latere.ai/x/agon/pkg/adversarial"
+
+sum, err := (&adversarial.Engine{
+    StateDir:  stateDir,
+    Cwd:       cwd,
+    ForkCount: forks,
+    Proposer:  proposer,   // e.g. pkg/adversarial/claude.NewProposer(...)
+    NewCritic: critics,    // e.g. pkg/adversarial/topos.NewCriticFactory(...)
+    MaxRounds: maxRounds,
+    DiffPatch: diff,
+}).Run(ctx)
 ```
 
-From source (requires Go 1.26+):
+- `pkg/adversarial` - the public engine, interfaces, and result types ([spec 37](specs/37-pkg-public-api.md)).
+- `pkg/adversarial/input` - locate the Claude transcript and compute the working-tree diff ([spec 40](specs/40-pkg-input-public.md)).
+- `pkg/adversarial/claude` - claude-CLI proposer (`--resume --fork-session`) and critic.
+- `pkg/adversarial/topos` - critics over [topos](https://github.com/latere-ai/topos) with model routing via Lux ([spec 39](specs/39-topos-backed-critic.md)).
 
-```sh
-go install latere.ai/x/agon/cmd/agon@latest
-```
-
-## Example usage
-
-agon is a deliberate CLI: run it yourself after a coding session (see
-"Run it on demand" below). You see one stdout line; the summary lives
-on disk:
-
-```text
-$ # ...claude does its thing...
-[agon] 2 unresolved; see /repo/.agon/sessions/20260506T140905Z-q3a9f1/summary.md
-
-$ cat .agon/sessions/*/summary.md
-# Agon review - terminated: steady-state
-
-## Headline (most contested unresolved)
-- [security/api.go:88] SQL injection via unparameterized LIKE
-  - Critic: framework auto-escape doesn't cover LIKE patterns
-  - Proposer: parameterized via SQLAlchemy
-  - **Stake**: GET /search?q=%' OR 1=1--
-  - Contention: 3 (re-attacked: true)
-
-## Resolved (5)
-- [conceded] Off-by-one in pagination → fixed at api.go:42
-...
-
-## Stats
-critic-found-bug rate: 5/8 attacks led to a fix
-agon cost: 38k tokens, 6 rounds, 4 critics
-```
-
-Trivial diffs (under `--changed-lines-min`, default 10) short-circuit
-in milliseconds. No session folder, just one `kind:"skipped"` line in
-`.agon/log.jsonl`.
-
-### Run it on demand
-
-There is no in-editor manual trigger: a slash command, skill, or
-`UserPromptSubmit` sentinel all mutate the root transcript (probed -
-see `specs/36-probe-userpromptsubmit-manual-trigger.md`). The
-byte-identical way to trigger on demand is to run agon yourself in a
-terminal - it only touches the live session via `--fork-session`, so
-your Claude Code transcript is untouched, exactly as under the Stop
-hook. This is also the path for CI gating, scripted batch runs, and
-reviewing a saved session:
-
-```sh
-agon \
-  --session-id <root-claude-session-id> \
-  --side-count 4 \
-  --max-turn 6
-```
-
-A shell alias keeps it one keystroke away (agon resolves the latest
-session for the cwd when `--session-id` is omitted):
-
-```sh
-alias agon-attack='agon --side-count 4 --max-turn 6'
-```
-
-Each of the four critics picks its own topic in R1; the orchestrator
-passes prior critics' topics to each later critic as anti-duplication
-signal. `agon --help` lists every flag. Exit codes: 0 clean,
-1 unresolved leaves, 130 interrupted, 100s pre-flight failure.
+A completed run writes per-fork artifacts and a contention-scored
+`summary.md` under `.agon/sessions/<id>/`.
 
 ## Design architecture
 
