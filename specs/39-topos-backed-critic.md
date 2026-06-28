@@ -240,8 +240,12 @@ returns a `CriticFactory` whose critics run one `Pinned` single-agent topos
 region per round over `adversarial.AssemblePrompt(in)` and return
 `RunResult.Final` as `CriticResult.Markdown`. `Config` carries `Model`,
 `Sandbox`, `Brain` (scripted-model test seam), and `Tools` (nil default = no
-grant = read-only). `go.mod` gained `require latere.ai/x/topos v0.0.5` (resolves
-from the public proxy; no replace, matching wallfacer).
+grant = read-only). The round honors `CriticInput.Deadline` via
+`context.WithTimeout`, matching the CLI critics (which pass it to the
+subprocess). `in.Model` is not mapped (a string does not map cleanly onto
+`ModelOptions`; set the model via `Config.Model`). `go.mod` gained `require
+latere.ai/x/topos v0.0.5` (resolves from the public proxy; no replace, matching
+wallfacer).
 
 Tests (`critic_test.go`, scripted `Brain`, network-free): factory yields an
 `adversarial.Critic`; a round returns the model text verbatim and it parses via

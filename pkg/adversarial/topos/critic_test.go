@@ -107,12 +107,15 @@ func TestRoundReportsNoUsage(t *testing.T) {
 	}
 }
 
-// TestReadOnlyPostureGrantsNoBash verifies the read-only posture: the critic
-// builds its AgentSpec with Tools=Config.Tools (nil by default), and topos
-// grants exactly that, so the agent gets no bash (and thus no way to execute or
-// mutate the tree). Asserted on the public lineage grants, with the granted
-// case as a control.
-func TestReadOnlyPostureGrantsNoBash(t *testing.T) {
+// TestToposGrantsExactlyAgentSpecTools verifies the topos grant semantics the
+// read-only posture relies on: an agent is granted exactly AgentSpec.Tools and
+// nothing more, so nil tools => no grants => no bash, while an explicit bash
+// grant does appear (control, so the nil assertion is not vacuous). The critic
+// builds its AgentSpec with Tools=Config.Tools (nil default; see critic.go); that
+// one-line wiring is not separately exercised here because CriticResult does not
+// surface lineage (spec 39 OQ-2), so this asserts the property the wiring leans
+// on, against the same public lineage Grants the critic would produce.
+func TestToposGrantsExactlyAgentSpecTools(t *testing.T) {
 	grants := func(tools []string) []string {
 		runner, err := xtopos.NewRunner(xtopos.Options{SessionID: "t", Brain: scriptedBrain{text: "ok"}})
 		if err != nil {
