@@ -1,8 +1,7 @@
 SHELL := /bin/bash
 
-# agon is a library (pkg/adversarial) plus the agon-web landing site. The
-# standalone CLI was sunset in favour of `latere agon` (latere-cli), so there
-# is no binary to build or install here.
+# agon is a library (pkg/adversarial) plus the agon-web landing site; the CLI
+# ships as `latere agon` in latere-cli. There is no binary to build here.
 
 .PHONY: all pre lint vet test build clean probe coverage
 

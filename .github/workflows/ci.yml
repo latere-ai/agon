@@ -56,7 +56,6 @@ jobs:
         with:
           go-version: "1.26.x"
           cache: true
-      # agon is a library (pkg/adversarial) plus the agon-web landing site;
-      # the standalone CLI was sunset in favour of `latere agon`. Build the
-      # whole module to catch compile breaks across packages.
+      # agon is a library (pkg/adversarial) plus the agon-web landing site.
+      # Build the whole module to catch compile breaks across packages.
       - run: go build ./...

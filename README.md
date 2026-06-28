@@ -17,13 +17,12 @@ start at [specs/README.md](specs/README.md) for the index.
 Release-cut evidence (probe outcomes, smoke recordings) is committed
 to [release-notes-v0.0.1.md](release-notes-v0.0.1.md).
 
-## The CLI is `latere agon`
+## CLI
 
-The standalone `agon` binary has been sunset. The full-fidelity CLI now
-ships inside [latere-cli](https://github.com/latere-ai/latere-cli) as
-`latere agon`, which embeds this engine, forks your real Claude Code
-session as the proposer, and routes critics through Lux on your Latere
-identity:
+The agon CLI ships as `latere agon` in
+[latere-cli](https://github.com/latere-ai/latere-cli): it embeds this engine,
+forks your real Claude Code session as the proposer, and routes critics through
+Lux on your Latere identity.
 
 ```sh
 latere auth login   # once
