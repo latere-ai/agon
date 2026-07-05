@@ -12,12 +12,18 @@ change from the relevant spec.
 
 ## Layout
 
-- `cmd/agon` and `cmd/agon-web` are the binaries.
-- `internal/` holds the implementation packages.
-- `e2e/` is the CLI integration and hook suite.
+- `pkg/adversarial/` is the public engine: the `Engine`, `Proposer`,
+  and `Critic` interfaces, and the `claude`, `topos`, and `input`
+  subpackages embedders build on.
+- `internal/` holds the implementation packages the engine composes.
+- `cmd/agon-web/` and `frontend/` are the `agon.latere.ai` landing
+  site (Go server + Vue/Vite source); landing copy lives in
+  `frontend/src/content/`.
 - `specs/` holds the authoritative design and per-component contracts.
-- `frontend/` is the website (Vue + Vite), the source of the landing
-  page copy in `frontend/src/content/`.
+
+The CLI is not built here: it ships as `latere agon` in
+[latere-cli](https://github.com/latere-ai/latere-cli), which imports
+this engine.
 
 ## Go toolchain
 
@@ -25,23 +31,19 @@ You need Go 1.26 or newer and `golangci-lint` v2 on your PATH. The
 `Makefile` is the single entry point:
 
 ```sh
-make           # lint, test (go test -race), then build bin/agon
+make           # lint, test (go test -race), then build
 make lint      # golangci-lint run ./...
 make vet       # go vet ./...
 make test      # go test -race -timeout 120s ./...
-make build     # build bin/agon with version ldflags
-make e2e       # CLI integration + hook suite
+make build     # go build ./...
 make coverage  # per-package coverage report -> coverage.html
-make probe     # run the scripts/probes/*.sh probes
 ```
 
-`make release-check` is the local pre-tag gate (lint, vet, test,
-build, version smoke). CI runs the same set, so run it before opening
-a release-bound PR.
+Run `make` before opening a PR; CI runs the same lint + test + build.
 
 ## Frontend
 
-The website lives in `frontend/` and uses [Bun](https://bun.sh):
+The landing site lives in `frontend/` and uses [Bun](https://bun.sh):
 
 ```sh
 cd frontend
@@ -52,12 +54,17 @@ bun run test       # vitest run
 bun run build      # type-check + static build
 ```
 
-Landing-page copy is data, not markup: edit `frontend/src/content/en.ts`
-and `frontend/src/content/zh.ts`. The two dictionaries are kept in
-structural parity, and a vitest check fails the build if a key exists
-in one language but not the other. Keep the prose in the same plain,
-explanatory register as this README and the docs. Do not use em
-dashes.
+Landing-page copy is data, not markup: edit
+`frontend/src/content/en.ts` and `frontend/src/content/zh.ts`, then run
+`bun run build` and commit the regenerated `.js` alongside (the build
+emits compiled `.js` next to each source, and Vite loads those). The
+two dictionaries are kept in structural parity, and a vitest check
+fails the build if a key exists in one language but not the other.
+Keep the prose in the same plain, explanatory register as the README
+and docs. Do not use em dashes.
+
+The site deploys to `agon.latere.ai` only on a `v*` tag (via
+`site.yml`); pushing to `main` does not deploy.
 
 ## Tests
 
@@ -74,18 +81,19 @@ test`); frontend logic is tested with vitest.
   `ci(...)`, `refactor(...)`, `revert: ...`.
 - Keep each commit to one small, self-contained scope. Many small
   commits are preferred over one large one.
-- Make sure `make` (or `make release-check` for release-bound work) is
-  green before you push.
+- Make sure `make` is green before you push.
 
 ## Reviewing changes with agon
 
-`agon` reviews its own changes. After a coding session, run a
-verification pass over the diff and address what survives:
+`agon` reviews its own changes through `latere agon`. After a coding
+session, run a verification pass over the diff and address what
+survives:
 
 ```sh
-agon --side-count 4 --max-turn 6
+latere agon --forks 4 --max-rounds 6
 ```
 
 It forks the producer session, spawns independent critics, runs the
 bounded debate, and writes an auditable session under `.agon/`. See
-the [README](README.md) for the full usage and exit codes.
+the [latere agon guide](https://github.com/latere-ai/latere-cli/blob/main/docs/agon.md)
+for the full usage and exit codes.

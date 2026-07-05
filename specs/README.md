@@ -62,8 +62,8 @@ the ones before it.
 ## Release-cut follow-ups (v0.0.1)
 
 These specs were added during the v0.0.1 release cut. Each one closes
-a numbered GA gate from spec 27 and writes its outcome into
-[`release-notes-v0.0.1.md`](../release-notes-v0.0.1.md).
+a numbered GA gate from spec 27 and records its outcome in the
+individual spec file below.
 
 - [28 G4 probe: no-output Stop hook](28-probe-no-output-stop-hook-outcome.md) - ❌ RETIRED (hook removed)
 - [29 G5 probe: signal latency](29-probe-signal-latency-outcome.md) - SIGINT to exit < 5s

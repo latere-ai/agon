@@ -14,8 +14,6 @@ forks off the root.
 
 Design and per-component contracts live under [specs/](specs/) -
 start at [specs/README.md](specs/README.md) for the index.
-Release-cut evidence (probe outcomes, smoke recordings) is committed
-to [release-notes-v0.0.1.md](release-notes-v0.0.1.md).
 
 ## CLI
 
@@ -34,8 +32,8 @@ for flags, exit codes, and how it works.
 
 ## Embedding the engine
 
-This repository is the importable engine. Implement [`Proposer`] and
-[`Critic`], wire them into an `Engine`, and call `Run`:
+This repository is the importable engine. Implement `Proposer` and
+`Critic`, wire them into an `Engine`, and call `Run`:
 
 ```go
 import adversarial "latere.ai/x/agon/pkg/adversarial"

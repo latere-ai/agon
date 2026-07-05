@@ -3,7 +3,7 @@ SHELL := /bin/bash
 # agon is a library (pkg/adversarial) plus the agon-web landing site; the CLI
 # ships as `latere agon` in latere-cli. There is no binary to build here.
 
-.PHONY: all pre lint vet test build clean probe coverage
+.PHONY: all pre lint vet test build clean coverage
 
 all: pre test build
 
@@ -23,13 +23,7 @@ build: pre
 	go build ./...
 
 clean:
-	rm -rf bin coverage.txt
-
-probe:
-	@for s in scripts/probes/*.sh; do \
-	  printf '== %s ==\n' "$$s"; \
-	  "$$s" || exit $$?; \
-	done
+	rm -f coverage.out coverage.html
 
 # Coverage report. Per-package mode: each package's tests cover its
 # own code. The previous -coverpkg=./... flavour produced misleading
