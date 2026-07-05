@@ -23,6 +23,18 @@
     --gradient-a: #c8b8a8;
     --gradient-b: #d4c4b4;
     --gradient-c: #ccbcac;
+
+    /* ===== Liquid Glass v2 geometry (theme-independent radii ladder) ===== */
+    --radius-xs: 8px;
+    --radius-sm: 12px;
+    --radius-md: 16px;
+    --radius-lg: 22px;
+    --radius-xl: 28px;
+    --radius-2xl: 36px;
+    --radius-pill: 999px;
+
+    /* Deep backdrop behind floating glass chrome (neutral, light). */
+    --bg-deep: #eeeef0;
 }
 
 [data-theme="dark"] {
@@ -47,6 +59,9 @@
     --gradient-a: #555;
     --gradient-b: #888;
     --gradient-c: #666;
+
+    /* Deep backdrop behind floating glass chrome (neutral, dark). */
+    --bg-deep: #050506;
 }
 
 /* ===== Agon Theme (crimson/garnet, matches latere-ai .agon-brand) ===== */
@@ -67,6 +82,7 @@ body:has(.agon-page) {
     --shadow: 0 1px 3px rgba(60,10,10,0.07);
     --shadow-lg: 0 8px 24px rgba(60,10,10,0.11);
     --grid-color: rgba(116,32,31,0.035);
+    --bg-deep: #f0e6e4;
     background: #f7f3ee;
 }
 [data-theme="dark"] body:has(.agon-page) {
@@ -86,5 +102,6 @@ body:has(.agon-page) {
     --shadow: 0 1px 3px rgba(0,0,0,0.35);
     --shadow-lg: 0 8px 24px rgba(0,0,0,0.55);
     --grid-color: rgba(255,255,255,0.025);
+    --bg-deep: #0d0606;
     background: #15110e;
 }
