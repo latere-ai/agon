@@ -32,7 +32,7 @@ type CriticFactory func(forkIdx int) agent.Critic
 // MaxRounds is the per-fork cap on internal rounds. Each fork
 // alternates critic (odd rounds) and proposer (even rounds), so a
 // user-facing "turn" (one critic message + one proposer message) is
-// two internal rounds. cmd/agon sets MaxRounds = 2 * --max-turn.
+// two internal rounds. Callers set MaxRounds = 2 × the user's turn count.
 //
 // HeartbeatInterval throttles the "still running, Ns elapsed" line
 // the engine emits while an agent call is in flight. Zero means use
@@ -50,14 +50,13 @@ type Engine struct {
 	DiffPatch         string
 	HeartbeatInterval time.Duration
 	// Progress is the writer used for per-fork and per-round progress
-	// lines. nil means silent. cmd/agon sets this to os.Stderr in
-	// non-hook mode. The Stop-hook path leaves it nil since claude
-	// swallows the stderr anyway.
+	// lines. nil means silent; callers set an io.Writer (typically
+	// os.Stderr) to surface progress.
 	Progress io.Writer
 	// Styled controls whether progress lines carry ANSI color
-	// escapes. cmd/agon enables this when stderr is a TTY; piped
-	// or redirected stderr stays plain so log files don't fill with
-	// raw escape codes.
+	// escapes. Callers enable this when the progress sink is a TTY;
+	// piped or redirected output stays plain so log files don't fill
+	// with raw escape codes.
 	Styled bool
 	// AllowStyleAttacks forwards the TOML allow_style_attacks key to the
 	// critic parser so style-shaped attacks are kept instead of dropped.
@@ -490,7 +489,7 @@ func forkLabel(topic string) string {
 
 // turnOf maps an internal round number to its user-facing turn. Turns
 // pair odd (critic) and even (proposer) rounds: R1+R2 = T1, R3+R4 =
-// T2, ... This is the number a user types into --max-turn.
+// T2, ... This is the user-facing turn count callers expose.
 func turnOf(round int) int {
 	return (round + 1) / 2
 }

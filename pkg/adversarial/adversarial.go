@@ -86,8 +86,8 @@ func (u TokenUsage) Total() int {
 
 // Summary is what [Engine.Run] returns on success.
 type Summary struct {
-	// Termination reason: "steady_state", "cost_cap", "max_turn",
-	// "interrupted", or "malformed_output".
+	// Termination reason: "steady-state", "cost-cap", "max-turn",
+	// "interrupted", or "malformed-output".
 	Termination string
 	Forks       []ForkOutcome
 	Unresolved  int    // attacks not conceded or rebutted at run end
@@ -107,7 +107,8 @@ type ForkOutcome struct {
 // Verifier is the top-level interface for adversarial post-run verification.
 // It is the integration seam for tools that want to embed adversarial
 // verification as a plugin step without assembling an Engine directly.
-// The no-op implementation returns (nil, nil) immediately (the skip path).
+// Implementations return (nil, nil) to signal a skip: verification disabled,
+// or the diff too trivial to debate.
 type Verifier interface {
 	Verify(ctx context.Context, in VerifyInput) (*VerifyResult, error)
 }

@@ -31,7 +31,7 @@ type ClaudeProposer struct {
 	// --disallowedTools so the proposer cannot use those tools. Callers
 	// embedding agon as a verifier set this (read-only) to guarantee the
 	// proposer argues and concedes but never edits the working tree it runs
-	// in. Empty (the default) preserves agon's standalone behavior.
+	// in. Empty (the default) applies no tool restriction.
 	DisallowedTools []string
 }
 

@@ -28,8 +28,8 @@ const maxScanLine = 8 * 1024 * 1024
 // When OnStdoutLine is non-nil, Exec switches to a streaming pipe:
 // stdout is read line-by-line and each line is forwarded to the
 // callback as it arrives. The full stdout is still buffered into
-// Result.Stdout for back-compat parsers. This is the path used by
-// --log-mode verbose to surface tool-use / thinking events live
+// Result.Stdout for back-compat parsers. This is the verbose streaming
+// path (OnStdoutLine): it surfaces tool-use / thinking events live
 // while the agent CLI runs.
 type Run struct {
 	Bin          string

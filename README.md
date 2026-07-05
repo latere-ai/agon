@@ -104,9 +104,10 @@ Five load-bearing pieces (full design in
   every transition is appended to `attacks.jsonl`. Headlines are
   picked by a pure contention score (`rounds_survived + (1 if
   re-attacked)`) - no LLM judging at this layer.
-- **Best-effort critic isolation.** v0 enforces "artifact + task
-  only" by critic system prompt and `codex --sandbox read-only`, not
-  OS isolation; strict per-fork sandbox dirs are v1.
+- **Best-effort critic isolation.** "Artifact + task only" is enforced
+  by the critic system prompt plus each backend's read-only posture
+  (claude proposer via `--disallowedTools`, topos critic via a no-tools
+  grant, `codex --sandbox read-only`), not OS isolation.
 
 ## Related work
 

@@ -7,9 +7,8 @@ import (
 )
 
 // TestFormatClaudeStreamEventToolUse pins the operator-facing string
-// for a claude tool_use event. Exact format is the contract a user
-// reads in --log-mode verbose, so a regression here is a UX
-// regression.
+// for a claude tool_use event. Exact format is the contract an operator
+// reads in the verbose stream, so a regression here is a UX regression.
 func TestFormatClaudeStreamEventToolUse(t *testing.T) {
 	cases := []struct {
 		name string

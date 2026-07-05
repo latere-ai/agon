@@ -307,9 +307,9 @@ func (s *usageCritic) Round(_ context.Context, _ agent.CriticInput) (*agent.Crit
 // TestEngineStyledProgressEmitsANSI asserts that with Styled=true,
 // progress lines carry ANSI escapes around the [agon] prefix and
 // role words, while plain mode (Styled=false) leaves them alone.
-// The test pins this at the engine layer because cmd/agon gates
-// Styled on stderr-TTY: a regression that ships ANSI to a piped log
-// would corrupt downstream tooling.
+// The test pins this at the engine layer because callers gate Styled
+// on stderr-TTY: a regression that ships ANSI to a piped log would
+// corrupt downstream tooling.
 func TestEngineStyledProgressEmitsANSI(t *testing.T) {
 	for _, tc := range []struct {
 		name        string
@@ -584,9 +584,9 @@ func (lw *lockedWriter) Write(p []byte) (int, error) {
 	return lw.w.Write(p)
 }
 
-// TestTurnOf locks in the round-to-turn mapping. Because --max-turn
-// re-interprets to pairs, R1+R2 must collapse to T1, R3+R4 to T2, etc.
-// A regression here would silently double or halve what users think
+// TestTurnOf locks in the round-to-turn mapping. Because a user-facing
+// turn re-interprets to pairs, R1+R2 must collapse to T1, R3+R4 to T2,
+// etc. A regression here would silently double or halve what users think
 // they're paying for.
 func TestTurnOf(t *testing.T) {
 	cases := []struct{ round, turn int }{
@@ -608,7 +608,7 @@ func TestTurnOf(t *testing.T) {
 
 // TestEngineProgressUsesTurnLabel asserts the user-facing label is
 // T<turn>, not R<round>. Was a UX complaint: with R1=critic and
-// R2=proposer, "--max-turn 3" reads to a user as "three messages"
+// R2=proposer, a turn count of 3 reads to a user as "three messages"
 // when it actually meant three rounds = 1.5 exchanges.
 func TestEngineProgressUsesTurnLabel(t *testing.T) {
 	sess, err := state.NewSession(t.TempDir(), 1, time.Now())
@@ -633,7 +633,7 @@ func TestEngineProgressUsesTurnLabel(t *testing.T) {
 		NewCritic: func(_ int) agent.Critic {
 			return &stubCritic{rounds: []string{r1, r3}}
 		},
-		// MaxRounds=4 is exactly 2 pairs (--max-turn 2 in user terms).
+		// MaxRounds=4 is exactly 2 pairs (2 turns in user terms).
 		MaxRounds: 4, CostCap: 100000, TaskContext: "task", DiffPatch: "diff",
 		Progress: &buf,
 	}

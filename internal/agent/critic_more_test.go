@@ -157,8 +157,8 @@ func main() {
 // path: the mock emits stream-json events including tool_use, then
 // the final result. The critic must (a) tee tool/thinking lines to
 // EventOut while running, (b) extract Markdown/Usage/USD from the
-// final result event. Together these prove --log-mode verbose now
-// shows what the agent is doing instead of just "still running".
+// final result event. Together these prove verbose streaming shows
+// what the agent is doing instead of just "still running".
 func TestClaudeCriticVerboseSurfacesEvents(t *testing.T) {
 	bin := buildHelper(t, "verbose-claude", `package main
 import "fmt"

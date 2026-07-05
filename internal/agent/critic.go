@@ -303,7 +303,7 @@ func (c *CodexCritic) Round(ctx context.Context, in CriticInput) (*CriticResult,
 //
 // Verbose toggles --output-format stream-json --verbose. When set,
 // each tool-use / thinking / text event is fed to EventOut as it
-// arrives so an operator running --log-mode verbose can see what
+// arrives so an operator who enabled verbose streaming can see what
 // the agent is doing without waiting for the full call to finish.
 type ClaudeCritic struct {
 	Bin      string

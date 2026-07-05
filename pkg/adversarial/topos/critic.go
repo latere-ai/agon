@@ -9,8 +9,9 @@
 // Each round runs one topos agent over the assembled critic prompt (which
 // already contains the diff) and returns the agent's text verbatim as
 // [adversarial.CriticResult.Markdown]; the engine parses it like any other
-// backend. Only this package imports topos, so the cmd/agon binary does not link
-// it (enforced by boundary_test.go).
+// backend. Only this package imports topos, so the engine core
+// ([adversarial]) and every other package stay free of the topos dependency
+// (enforced by boundary_test.go).
 package topos
 
 import (
@@ -58,7 +59,7 @@ type critic struct {
 // and returns the agent's final text as CriticResult.Markdown. Token usage is
 // not reported: topos's public RunResult exposes none (see spec 39 OQ-3).
 func (c *critic) Round(ctx context.Context, in adversarial.CriticInput) (*adversarial.CriticResult, error) {
-	// Match the CLI critics, which bound each round by in.Deadline
+	// Match the subprocess critics, which bound each round by in.Deadline
 	// (internal/agent.CodexCritic / ClaudeCritic pass it to the subprocess).
 	if in.Deadline > 0 {
 		var cancel context.CancelFunc
