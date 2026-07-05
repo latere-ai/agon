@@ -1,15 +1,12 @@
 name: Site
 
 # Agon landing site (agon.latere.ai). Deploys on a version tag (v*),
-# matching the other product repos (topos, lux) — pushing commits to
-# main never deploys. A v* tag also triggers release.yml (the agon CLI
-# goreleaser), so cutting a tag releases both the CLI and the site.
+# matching the other product repos (topos, lux); pushing commits to
+# main never deploys. agon ships no binary (the CLI lives in latere-cli
+# as `latere agon`), so this is the only tag-triggered workflow.
 #
 # After the site rolls, this workflow smokes /, /healthz, /readyz and
-# creates/edits the GitHub release with the smoke evidence. release.yml
-# (goreleaser) attaches CLI binary tarballs to the same release. The
-# two can race; whichever runs first creates the release, the other
-# edits/attaches.
+# creates the GitHub release for the tag with the smoke evidence.
 on:
   push:
     tags:
