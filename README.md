@@ -49,10 +49,10 @@ sum, err := (&adversarial.Engine{
 }).Run(ctx)
 ```
 
-- `pkg/adversarial` - the public engine, interfaces, and result types ([spec 37](specs/37-pkg-public-api.md)).
-- `pkg/adversarial/input` - locate the Claude transcript and compute the working-tree diff ([spec 40](specs/40-pkg-input-public.md)).
-- `pkg/adversarial/claude` - claude-CLI proposer (`--resume --fork-session`) and critic.
-- `pkg/adversarial/topos` - critics over [topos](https://github.com/latere-ai/topos) with model routing via Lux ([spec 39](specs/39-topos-backed-critic.md)).
+- `pkg/adversarial` - the public engine, interfaces, and result types ([03 Engine API](specs/03-engine-api.md)).
+- `pkg/adversarial/input` - locate the Claude transcript and compute the working-tree diff ([05 Inputs](specs/05-inputs.md)).
+- `pkg/adversarial/claude` - claude-CLI proposer (`--resume --fork-session`) and critic ([04 Backends](specs/04-backends.md)).
+- `pkg/adversarial/topos` - critics over [topos](https://github.com/latere-ai/topos) with model routing via Lux ([04 Backends](specs/04-backends.md)).
 
 A completed run writes per-fork artifacts and a contention-scored
 `summary.md` under `.agon/sessions/<id>/`.
@@ -80,7 +80,8 @@ A completed run writes per-fork artifacts and a contention-scored
 ```
 
 Five load-bearing pieces (full design in
-[spec 01](specs/01-overview.md)):
+[01 Architecture](specs/01-architecture.md) and
+[02 Debate protocol](specs/02-protocol.md)):
 
 - **Forked agon, no agon content in root.** Each critic gets its
   own claude fork via `--fork-session`. agon runs as a separate
@@ -116,10 +117,10 @@ Five load-bearing pieces (full design in
   the architecture this tool productizes. Specs 08–13 explore
   protocol variants (compute asymmetry, recursive sub-debate,
   stochastic systems, PCP-style leaves, Prover-Estimator,
-  DQC scaling). None drive v0; each one's empirical result *could*
-  license a specific change here if it goes a particular way - see
-  [specs/README.md §Related research](specs/README.md#related-research)
-  for the conditional mapping.
+  DQC scaling). None are load-bearing today; each one's empirical
+  result *could* license a specific change here if it goes a particular
+  way - see the [roadmap](specs/README.md#roadmap) for the conditional
+  mapping.
 - Irving, Christiano & Amodei,
   [*AI Safety via Debate*](https://arxiv.org/abs/1805.00899) (2018) -
   one agent proposes, another finds flaws, a judge inspects only the

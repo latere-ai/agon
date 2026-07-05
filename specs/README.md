@@ -1,133 +1,131 @@
 # agon specs
 
-The implementation specs for `agon`. Each one is the authoritative
-contract for a slice of the system; the code is meant to follow what
-the spec says, not the other way around. Read in order; each builds on
-the ones before it.
+agon is a Go **adversarial-review engine and protocol**. After a coding agent
+produces a change, agon forks the session, runs one or more independent critics
+that attack the diff, lets the proposer defend or concede, and surfaces only the
+disputes that survive. It ships as an importable library (`pkg/adversarial`),
+not a standalone tool: the CLI is `latere agon` in
+[latere-cli](https://github.com/latere-ai/latere-cli), and the same engine is
+embedded by wallfacer and the agents platform.
 
-## Design
+These specs are the current-state contracts for the engine and its protocol.
+They describe what the code does today, not a build history. The roadmap at the
+bottom describes what comes next.
 
-- [01 Overview](01-overview.md) - architecture, fork model, v0/v1 split, lifecycle invariants
+## Contracts
 
-## Foundations
+- [01 Architecture](01-architecture.md) - what agon is, the fork/debate model, the component map, and its consumers.
+- [02 Debate protocol](02-protocol.md) - the wire contract: roles, rounds, the critic attack format, dispositions, the attack ledger, termination, and headline surfacing.
+- [03 Engine API](03-engine-api.md) - the public Go embedder contract (`pkg/adversarial`): `Engine`, `Proposer`, `Critic`, `Verifier`, and the result types.
+- [04 Backends](04-backends.md) - proposer and critic backends: the claude and codex CLIs, and the topos/Lux governed runtime.
+- [05 Inputs](05-inputs.md) - `pkg/adversarial/input`: locating the Claude transcript and computing the working-tree diff.
+- [06 Session format](06-session-format.md) - the on-disk `.agon/sessions/<id>/` layout, artifacts, and schema versions.
+- [07 Landing site](07-site.md) - `agon.latere.ai`: the `agon-web` server, the embedded SPA, and its deploy.
 
-- [02 Go module + layout](02-go-module.md)
-- [03 CI, lint, release pipeline](03-ci-lint-release.md)
-- [04 CLI flags](04-cli-flags.md)
-- [05 `.agon.toml` config](05-config-file.md)
-- [06 Preflight](06-preflight.md)
+## Conventions
 
-## Inputs
+Each spec opens with YAML frontmatter:
 
-- [07 Claude transcript ingest](07-claude-transcript.md)
-- [08 Diff capture](08-diff.md)
+```yaml
+---
+title: <human-readable title>
+status: current | proposed | exploratory
+updated: YYYY-MM-DD
+author: changkun
+---
+```
 
-## On-disk layout
+`current` means the spec describes shipped behavior; `proposed` and `exploratory`
+appear in the roadmap below. Prose is plain and explanatory; do not use em dashes.
 
-- [09 State directory](09-state-dir.md)
-- [10 Run-level artifacts](10-run-artifacts.md)
-- [11 Fork-level artifacts](11-fork-artifacts.md)
-- [12 Attacks ledger](12-attacks-ledger.md)
+## Roadmap
 
-## Critic protocol
+Where agon goes next, as an engine and a protocol. The contracts above describe
+what ships today; this describes what is proposed and what is being explored.
+Nothing here is a commitment; each item names what would move it forward.
 
-- [13 Critic output format](13-critic-output-format.md)
-- [14 Attack parser](14-attack-parser.md)
-- [15 Aspect / topic prompts](15-aspect-prompts.md)
+### Engine and integration (near-term)
 
-## Subprocess + agents
+Finishing the topos/Lux backend and hardening the embedder surface. Concrete items
+carried over from the topos critic work (`pkg/adversarial/topos`):
 
-- [16 Subprocess infra](16-subprocess-infra.md)
-- [17 Claude proposer](17-claude-proposer.md)
-- [18 Critic drivers](18-critic-drivers.md)
+- **Token usage from topos** (blocked on topos). topos's public `RunResult`
+  exposes no usage, so topos critics report zero and fall outside the engine's
+  cost-cap accounting. Needs a topos-side change to surface `loop.Result.TotalUsage`
+  (or a usage event summable via an observer). This is the one gap that keeps
+  topos critics "sound for correctness but not for cost".
+- **Read-only file tools for topos critics** (blocked on topos). topos's only
+  builtin is `bash`, so a read-only topos critic sees only the prompt-embedded
+  diff and cannot open untouched files, unlike the codex critic's read-only
+  sandbox. Needs topos-side read-only file tools.
+- **Cella workspace wiring.** How an embedder's worktree reaches a Cella sandbox
+  cwd (mount versus copy). Moot for the local sandbox and wallfacer's existing
+  worktree; needed when a Cella embedder arrives.
+- **Lineage surfacing.** Optionally carry topos lineage node IDs on `Summary` /
+  `ForkOutcome` so an embedder can correlate critic forks with its own graph.
+- **A codex backend package.** Promote the codex critic into a
+  `pkg/adversarial/codex` sibling of `claude`/`topos` once the API shape is
+  settled.
+- **API stabilization.** Move `pkg/adversarial` toward a stable, semver-committed
+  surface. The protocol is more stable than the Go surface; the Go surface catches
+  up.
+- **Per-critic model configuration** and **parallel forks** via per-fork git
+  worktrees (frozen snapshots) to eliminate cross-fork outcome leakage, with a
+  concession-merge story.
 
-## Orchestration
+### Protocol and research directions
 
-- [19 Round loop](19-round-loop.md)
-- [20 Termination](20-termination.md)
-- [21 Signals](21-signals.md)
-
-## Output
-
-- [22 Contention headline](22-contention-headline.md)
-- [23 Summary render](23-summary-render.md)
-
-## Triggering + verification
-
-- [24 Stop hook](24-stop-hook.md) - ❌ RETIRED (hook removed; see [36](36-probe-userpromptsubmit-manual-trigger.md))
-- [25 Probes](25-probes.md)
-- [26 Tests](26-tests.md)
-- [27 Release process and GA gates](27-release.md)
-
-## Release-cut follow-ups (v0.0.1)
-
-These specs were added during the v0.0.1 release cut. Each one closes
-a numbered GA gate from spec 27 and records its outcome in the
-individual spec file below.
-
-- [28 G4 probe: no-output Stop hook](28-probe-no-output-stop-hook-outcome.md) - ❌ RETIRED (hook removed)
-- [29 G5 probe: signal latency](29-probe-signal-latency-outcome.md) - SIGINT to exit < 5s
-- [30 G6 probe: trivial-diff fast path](30-probe-trivial-diff-perf-outcome.md) - hook returns < 200ms median
-- [31 G7 probe: interactive stdout](31-probe-interactive-stdout-outcome.md) - non-blocking, manual
-- [32 G13 real-e2e suite](32-real-e2e-suite.md) - e2e/real test behind real_e2e build tag
-- [33 G15 install-hook smoke](33-install-hook-smoke.md) - ❌ RETIRED (install-hook removed)
-- [34 G16 real-claude end-to-end](34-real-claude-end-to-end-smoke.md) - agon runs with real claude+codex
-- [35 Release-notes channel](35-release-notes-channel.md) - decides where probe/gate outcomes live
-- [36 Probe: UserPromptSubmit manual trigger](36-probe-userpromptsubmit-manual-trigger.md) - FAIL; manual trigger can't be byte-identical
-
-## Public API + embedding
-
-- [37 Public `pkg/adversarial` API](37-pkg-public-api.md) - importable engine, interfaces, result types
-- [38 Read-only proposer option](38-read-only-proposer.md) - `WithProposerReadOnly` for embedders sharing the real tree
-- [39 Topos-backed critic](39-topos-backed-critic.md) - ✅ `pkg/adversarial/topos` critic over `latere.ai/x/topos` (Lux/Cella); proposer stays on the CLI (phase 2 satisfied by latere-cli `latere agon`, verified live)
-- [40 Public `pkg/adversarial/input`](40-pkg-input-public.md) - ✅ promote `internal/input` (transcript + diff) so embedders can build a `VerifyInput` without reimplementing it
-
-## Status
-
-Specs 01-40 are marked ✅ implemented. Spec status lines individually
-record what's verified, what's deferred, and what was changed during
-the release cut.
-
-## Related research
-
-**Nothing in v0 is driven by post-07 research.** v0 ships the
-practical baseline: flat K-round agon, equal-protocol compute
-between proposer and critic, default agent-CLI temperature, freeform
-prose stakes, and a binary critic disposition (concede / rebut /
-withdraw / push-back). The papers in this section are theoretical
-context, not a roadmap.
-
-`agon` productizes the architecture from
+agon productizes adversarial-debate theory. The soundness case rests on the 2023
+*Doubly-Efficient Debate* result, which extends the 2018 PSPACE intuition to
+stochastic systems and proves soundness under compute asymmetry: the formal
+license for applying debate to LLMs at all. The
 [agents-byzantine-tolerance](https://github.com/changkun/agents-byzantine-tolerance)
-spec 07 ([Adversarial
-Debate](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/07-adversarial-debate.md)).
-Of the six follow-up specs (08–13) only one is load-bearing today:
+research line asks "is agon sound under condition X?"; this repo asks "given the
+answer, what does the engine become?" Each direction below is gated on an
+empirical result.
 
-- **The 2023 *Doubly-Efficient Debate* result is what licenses
-  applying debate to LLMs at all** - it extends the 2018 PSPACE
-  intuition from deterministic to stochastic systems and proves
-  soundness under compute asymmetry. v0's "two LLMs cross-examining
-  each other about a diff" is theoretically motivated, not
-  hand-waved, *because of* this paper. Cited and operationalized
-  across BFT specs 08–13.
+Lighter changes, if the result goes a particular way:
 
-The other specs describe protocol variants and extensions. None of
-them currently mandate any change here; each one's empirical result
-*could* license a specific change, conditional on the result going a
-particular way:
+- **Compute-asymmetric knobs.** If soundness holds across a compute-asymmetry
+  range, expose per-role compute controls (retries, per-role round cap, per-role
+  model).
+- **Temperature guard.** If soundness drops above some temperature, add a
+  temperature control and refuse to run against agent configs that override it.
+- **Bounded summary length.** If judge-read tokens scale polynomially rather than
+  logarithmically, cap the `summary.md` body and make the contention headline the
+  only doubly-efficient channel.
+- **Structured critic leaves (PCP).** Tighten the critic's reproduction field from
+  freeform prose toward a structured tuple (`{file, line_range, expected_pattern}`)
+  where soundness needs it. A schema change to the [protocol](02-protocol.md).
 
-| BFT spec | Empirical question | What a positive result *could* license here |
-|---|---|---|
-| [08 Compute-asymmetric](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/08-compute-asymmetric-agon.md) | Does soundness hold under {1×, 5×, 10×, 50×} compute asymmetry? | Per-role compute knobs (retries, per-role max-turn, per-role model). Minor change. |
-| [09 Depth/recursion](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/09-debate-depth-recursion.md) | Flat-K or recursive sub-debate at matched compute? | "More rounds" (raise `--max-turn` defaults) vs. recursive sub-debates spawned per unresolved leaf. The latter is a v2-class architectural change. |
-| [10 Stochastic-system](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/10-stochastic-system-soundness.md) | Does soundness survive the LLM temperature range? | If soundness drops above some T\*: a `--temperature` flag and refusal to run against agent configs that override it. Otherwise: nothing. |
-| [11 PCP leaf format](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/11-pcp-leaf-spot-check.md) | Where does soundness collapse on the freeform-to-structured Pareto? | Tightening the critic's "Reproduction" field from freeform prose to structured tuples (`{file_path, line_range, expected_byte_pattern}`). Schema change for spec 13/14. |
-| [12 Prover-Estimator](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/12-prover-estimator-obfuscation.md) | Is obfuscation a real LLM attack class? Does Prover-Estimator beat plain debate on it? | If yes to both: the binary disposition contract is unsound on pathological diffs and would be replaced by a scalar plausibility estimator. v2-class architectural change. |
-| [13 DQC scaling](https://github.com/changkun/agents-byzantine-tolerance/blob/main/specs/13-dqc-scaling.md) | Do judge-read tokens scale as O(log *n*) or O(*n*^a)? | If polynomial: an explicit length cap on `summary.md` body, with the contention headline (spec 22) as the only doubly-efficient channel. Otherwise: nothing. |
+Heavier, architecture-class changes:
 
-The general pattern: the BFT-repo line asks "is agon sound under
-condition X?"; this repo asks "given the answer, what does the
-production tool look like?" Today the answer for most rows is "we
-don't know yet, and v0 doesn't depend on it" - which is fine,
-because v0 is the practical baseline that the papers' positive
-results are licensing in the first place.
+- **Recursive sub-debate.** Spawn a sub-debate per unresolved leaf, where the
+  proposer's rebuttal becomes the new claim, instead of only running more flat
+  rounds. Justified if recursion beats flat-K at matched compute.
+- **Scalar disposition (Prover-Estimator).** If obfuscation is a real LLM attack
+  class that plain debate loses to, the binary concede/rebut/withdraw contract is
+  unsound on pathological diffs and would be replaced by a scalar plausibility
+  estimator.
+
+### Multi-agent extensions
+
+Beyond the proposer-versus-critic asymmetry, two protocol shapes are candidates
+(design input imported from wallfacer's oversight work):
+
+- **N-agent debate.** A generalized multi-round deliberation (opening, rebuttal,
+  closing, convergence detection) with configurable turn order and a lightweight
+  convergence judge, distinct from the asymmetric review protocol.
+- **Consensus and voting.** A voting protocol (single / cross-provider / unanimous
+  / majority) framed in Byzantine-fault-tolerance terms (3f+1, with the
+  correlated-failure caveat that same-vendor models share blind spots), with
+  deterministic verifiers (linters, type-checkers) as votes, arbiter and human
+  escalation, and per-dimension agreement maps. A designated red-teaming mode and
+  empirical measurement of cross-provider independence are the adversarial pieces
+  most relevant to agon's charter.
+
+### Deployment futures
+
+- **Hosted Verifier service.** The [`Verifier` interface](03-engine-api.md) is the
+  seam for a hosted adversarial-review service at `agon.latere.ai` (beyond the
+  landing site). Named, not built; the local track (`latere agon`) is done.

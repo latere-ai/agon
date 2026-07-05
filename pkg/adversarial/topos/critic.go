@@ -4,7 +4,7 @@
 // uses [NewCriticFactory] to run critic forks through the governed runtime:
 // model routing via Lux or Direct, a topos sandbox (local or Cella), and a
 // lineage record, instead of shelling out to local CLIs. The proposer stays on
-// the claude CLI; see specs/39-topos-backed-critic.md ("Why critic-only").
+// the claude CLI; see specs/04-backends.md.
 //
 // Each round runs one topos agent over the assembled critic prompt (which
 // already contains the diff) and returns the agent's text verbatim as

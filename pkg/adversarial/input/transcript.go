@@ -1,5 +1,5 @@
 // Package input reads the claude session transcript and computes the
-// working-tree diff. See specs/07-claude-transcript.md for design.
+// working-tree diff. See specs/05-inputs.md for design.
 package input
 
 import (
