@@ -162,24 +162,34 @@
     min-height: 100vh;
 }
 
-/* ---- Nav ---- */
+/* ---- Nav — Liquid Glass v2 floating capsule ----
+   The nav is the only *floating chrome* on the landing: a thin-glass
+   capsule that floats over the page and refracts the content scrolling
+   underneath. The shell is a transparent sticky wrapper; the capsule
+   itself carries the material, drawn entirely from the shared latere-ui
+   glass tokens so agon's chrome matches every other Latere surface. All
+   content below the nav stays un-frosted (the Liquid Glass contract). */
 .v-dialectic .nav {
     position: sticky;
     top: 0;
     z-index: 100;
-    background: color-mix(in srgb, var(--bg) 80%, transparent);
-    backdrop-filter: saturate(140%) blur(18px);
-    -webkit-backdrop-filter: saturate(140%) blur(18px);
-    border-bottom: 1px solid var(--border);
+    padding: 14px 16px 0;
+    background: transparent;
 }
 .v-dialectic .nav-inner {
     max-width: 1360px;
     margin: 0 auto;
-    padding: 0 var(--container-pad);
+    padding: 0 12px 0 20px;
     height: var(--nav-height);
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border-radius: var(--radius-pill);
+    background: var(--glass-bg-thin);
+    -webkit-backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+            backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass);
 }
 .v-dialectic .nav-brand {
     display: flex;
@@ -215,11 +225,16 @@
 .v-dialectic .nav-link {
     font-size: 13px;
     color: var(--text-secondary);
-    padding: 8px 12px;
-    border-radius: var(--radius-md);
-    transition: color 0.2s, background 0.2s;
+    padding: 8px 14px;
+    border-radius: var(--radius-pill);
+    transition: color 0.2s, background 0.2s, box-shadow 0.2s;
 }
-.v-dialectic .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+/* Active/hover nav pill = shared pill-fill + specular top edge. */
+.v-dialectic .nav-link:hover {
+    color: var(--text);
+    background: var(--glass-pill-fill);
+    box-shadow: var(--glass-edge-top);
+}
 .v-dialectic .btn {
     display: inline-flex;
     align-items: center;
@@ -227,21 +242,38 @@
     font-size: 13px;
     font-weight: 600;
     padding: 9px 16px;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-pill);
     border: 1px solid transparent;
     transition: all 0.15s ease;
     white-space: nowrap;
 }
+/* Primary = smoked ink capsule. The smoke tokens theme-flip on their own
+   (dark ink on light in dark mode), so no per-theme override is needed. */
 .v-dialectic .btn-primary {
-    background: var(--text);
-    color: var(--bg-surface);
+    background: var(--glass-smoke-strong);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: var(--glass-smoke-ink);
+    box-shadow: var(--shadow-glass);
 }
-.v-dialectic .btn-primary:hover { background: #000; }
+.v-dialectic .btn-primary:hover {
+    background: var(--glass-smoke-strong);
+    color: var(--glass-smoke-ink);
+    box-shadow: var(--shadow-glass-hover);
+}
+/* Secondary = thin-glass capsule + specular edge. */
 .v-dialectic .btn-ghost {
-    border-color: var(--border-strong);
     color: var(--text);
+    background: var(--glass-bg-thin);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-edge-top);
+    -webkit-backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
+            backdrop-filter: blur(var(--glass-blur-thin)) saturate(var(--glass-saturate));
 }
-.v-dialectic .btn-ghost:hover { background: var(--bg-raised); border-color: var(--text); }
+.v-dialectic .btn-ghost:hover {
+    background: var(--glass-pill-fill);
+    border-color: var(--glass-border);
+    box-shadow: var(--glass-edge-top);
+}
 
 /* ---- Nav: mobile ---- */
 .v-dialectic .nav-toggle { display: none; }
@@ -257,20 +289,23 @@
         background: var(--bg-surface);
         color: var(--text);
     }
+    /* Collapsed menu = thick-glass overlay (it floats over content), inset
+       below the floating capsule and drawn from the shared glass tokens. */
     .v-dialectic .nav-links {
         position: absolute;
-        top: var(--nav-height);
-        left: 0;
-        right: 0;
+        top: calc(var(--nav-height) + 22px);
+        left: 16px;
+        right: 16px;
         flex-direction: column;
         align-items: stretch;
-        gap: 2px;
-        padding: 12px var(--container-pad) 18px;
-        background: color-mix(in srgb, var(--bg) 96%, transparent);
-        backdrop-filter: saturate(140%) blur(18px);
-        -webkit-backdrop-filter: saturate(140%) blur(18px);
-        border-bottom: 1px solid var(--border);
-        box-shadow: var(--shadow-md);
+        gap: 4px;
+        padding: 12px;
+        border-radius: var(--radius-2xl);
+        background: var(--glass-bg-thick);
+        backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
+        -webkit-backdrop-filter: blur(var(--glass-blur-thick)) saturate(var(--glass-saturate));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-glass);
         display: none;
     }
     .v-dialectic .nav-links.is-open { display: flex; }
@@ -390,11 +425,14 @@
     margin-bottom: 56px;
 }
 .v-dialectic .hero-actions .btn-primary {
-    background: var(--text);
-    color: var(--bg-surface);
+    background: var(--glass-smoke-strong);
+    color: var(--glass-smoke-ink);
     font-weight: 700;
 }
-.v-dialectic .hero-actions .btn-primary:hover { background: #000; }
+.v-dialectic .hero-actions .btn-primary:hover {
+    background: var(--glass-smoke-strong);
+    box-shadow: var(--shadow-glass-hover);
+}
 
 /* ---- "Works with" harnesses strip ---- */
 .v-dialectic .harnesses {
@@ -1423,10 +1461,13 @@
 .v-dialectic .copy-btn.copied { color: var(--accent-light); border-color: var(--accent-light); }
 .v-dialectic .install-cta { display: flex; gap: 12px; margin-top: 28px; justify-content: center; flex-wrap: wrap; }
 .v-dialectic .install-cta .btn-primary {
-    background: var(--text);
-    color: var(--bg-surface);
+    background: var(--glass-smoke-strong);
+    color: var(--glass-smoke-ink);
 }
-.v-dialectic .install-cta .btn-primary:hover { background: #000; }
+.v-dialectic .install-cta .btn-primary:hover {
+    background: var(--glass-smoke-strong);
+    box-shadow: var(--shadow-glass-hover);
+}
 
 
 /* ============================================================
@@ -1479,20 +1520,16 @@
     background: rgba(244, 236, 224, 0.05);
 }
 
-[data-theme="dark"] .v-dialectic .btn-primary,
-[data-theme="dark"] .v-dialectic .hero-actions .btn-primary,
-[data-theme="dark"] .v-dialectic .install-cta .btn-primary {
-    background: var(--text);
-    color: var(--bg);
-}
+/* Primary buttons keep the smoke-ink tokens in dark (they theme-flip to
+   light ink), so no dark background override — only the specular hover. */
 [data-theme="dark"] .v-dialectic .btn-primary:hover,
 [data-theme="dark"] .v-dialectic .hero-actions .btn-primary:hover,
 [data-theme="dark"] .v-dialectic .install-cta .btn-primary:hover {
-    background: #fff;
+    box-shadow: var(--shadow-glass-hover);
 }
 [data-theme="dark"] .v-dialectic .btn-ghost:hover {
-    background: var(--bg-raised);
-    border-color: var(--text);
+    background: var(--glass-pill-fill);
+    border-color: var(--glass-border);
 }
 
 [data-theme="dark"] .v-dialectic .hero-grid {
@@ -1659,4 +1696,20 @@
     font-family: 'LXGW WenKai TC', -apple-system, 'PingFang SC',
         'Microsoft YaHei', serif;
     font-style: normal;
+}
+
+/* ============================================================
+   Reduce transparency — flatten the hand-rolled glass capsules.
+   The glass tokens already collapse to opaque fills + 0 blur under
+   this query (glass.css), so the chrome degrades on its own; we also
+   drop backdrop-filter outright so no engine keeps a frost layer over
+   the now-opaque surfaces. Mirrors the reference lux-glass.css.
+   ============================================================ */
+@media (prefers-reduced-transparency: reduce) {
+    .v-dialectic .nav-inner,
+    .v-dialectic .nav-links,
+    .v-dialectic .btn-ghost {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
 }
