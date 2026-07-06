@@ -6,7 +6,7 @@
       "name": "agon-web",
       "dependencies": {
         "@unhead/vue": "^2.0.0",
-        "latere-ui": "github:latere-ai/latere-ui#v1.20.1",
+        "latere-ui": "github:latere-ai/latere-ui#v1.21.0",
         "pinia": "^2.2.6",
         "vite-ssg": "^28.3.0",
         "vue": "^3.5.13",
@@ -313,7 +313,7 @@
 
     "jsdom": ["jsdom@28.1.0", "", { "dependencies": { "@acemir/cssom": "^0.9.31", "@asamuzakjp/dom-selector": "^6.8.1", "@bramus/specificity": "^2.4.2", "@exodus/bytes": "^1.11.0", "cssstyle": "^6.0.1", "data-urls": "^7.0.0", "decimal.js": "^10.6.0", "html-encoding-sniffer": "^6.0.0", "http-proxy-agent": "^7.0.2", "https-proxy-agent": "^7.0.6", "is-potential-custom-element-name": "^1.0.1", "parse5": "^8.0.0", "saxes": "^6.0.0", "symbol-tree": "^3.2.4", "tough-cookie": "^6.0.0", "undici": "^7.21.0", "w3c-xmlserializer": "^5.0.0", "webidl-conversions": "^8.0.1", "whatwg-mimetype": "^5.0.0", "whatwg-url": "^16.0.0", "xml-name-validator": "^5.0.0" }, "peerDependencies": { "canvas": "^3.0.0" }, "optionalPeers": ["canvas"] }, "sha512-0+MoQNYyr2rBHqO1xilltfDjV9G7ymYGlAUazgcDLQaUf8JDHbuGwsxN6U9qWaElZ4w1B2r7yEGIL3GdeW3Rug=="],
 
-    "latere-ui": ["latere-ui@github:latere-ai/latere-ui#6b05c41", { "peerDependencies": { "pinia": "^2.2.0 || ^3.0.0", "vue": "^3.5.0" } }, "latere-ai-latere-ui-6b05c41", "sha512-uQ+NAHGubJB2MHeFSGipuchpZ3MYTFzJSK+8MwJWISQ1jIJMG9Ad6BOsGQG5ejsTnTrFuzPZkzfmNQOL0+ThKg=="],
+    "latere-ui": ["latere-ui@github:latere-ai/latere-ui#d67352e", { "peerDependencies": { "pinia": "^2.2.0 || ^3.0.0", "vue": "^3.5.0" } }, "latere-ai-latere-ui-d67352e", "sha512-SvNo+FgoWTD+9RICc1LY8twNkIhrDISJvl/QGCNbt+xoCxqhWHVR2vzxbzm8FcervtvHWUGs/evuSbc/kqPUXQ=="],
 
     "lower-case": ["lower-case@2.0.2", "", { "dependencies": { "tslib": "^2.0.3" } }, "sha512-7fm3l3NAF9WfN6W3JOmf5drwpVqX78JtoGJ3A6W0a6ZnldM41w2fV5D490psKFTpMds8TJse/eHLFFsNHHjHgg=="],
 
