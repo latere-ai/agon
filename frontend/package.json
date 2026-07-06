@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@unhead/vue": "^2.0.0",
-    "latere-ui": "github:latere-ai/latere-ui#v1.21.0",
+    "latere-ui": "github:latere-ai/latere-ui#v1.22.0",
     "pinia": "^2.2.6",
     "vite-ssg": "^28.3.0",
     "vue": "^3.5.13",
