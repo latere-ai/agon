@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/state"
+	"latere.ai/x/agon/internal/state"
 )
 
 // Status enumerates the on-disk values for the attack state machine.

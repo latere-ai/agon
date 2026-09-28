@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	nativecritic "latere.ai/x/agon/critic"
 	"latere.ai/x/topos"
-	nativecritic "latere.ai/x/topos/adversarial/critic"
 	"latere.ai/x/topos/models"
 	"latere.ai/x/topos/sandbox"
 	"latere.ai/x/topos/sandbox/local"

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/state"
+	"latere.ai/x/agon/internal/state"
 )
 
 func TestPendingDeterministicOrder(t *testing.T) {

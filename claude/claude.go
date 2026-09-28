@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-// Package claude provides [adversarial.Proposer] and [adversarial.Critic]
+// Package claude provides [agon.Proposer] and [agon.Critic]
 // implementations backed by the claude CLI.
 //
 // [NewProposer] uses `claude --resume <sessionID> --fork-session` and is
@@ -14,9 +14,9 @@ import (
 	"context"
 	"time"
 
-	adversarial "latere.ai/x/topos/adversarial"
-	"latere.ai/x/topos/adversarial/internal/agent"
-	"latere.ai/x/topos/adversarial/internal/critic"
+	"latere.ai/x/agon"
+	"latere.ai/x/agon/internal/agent"
+	"latere.ai/x/agon/internal/critic"
 )
 
 // ProposerOption configures a proposer created by [NewProposer].
@@ -47,11 +47,11 @@ func WithProposerReadOnly() ProposerOption {
 	}
 }
 
-// NewProposer returns an [adversarial.Proposer] that drives the
+// NewProposer returns an [agon.Proposer] that drives the
 // implementation-agent clone via `claude --resume <sessionID> --fork-session`.
 // sessionID is the claude session ID produced by the implementation run
 // (Task.SessionID in wallfacer). cwd is the working directory.
-func NewProposer(sessionID, cwd string, opts ...ProposerOption) adversarial.Proposer {
+func NewProposer(sessionID, cwd string, opts ...ProposerOption) agon.Proposer {
 	p := &agent.ClaudeProposer{
 		RootID:   sessionID,
 		Cwd:      cwd,
@@ -65,7 +65,7 @@ func NewProposer(sessionID, cwd string, opts ...ProposerOption) adversarial.Prop
 
 type proposerWrap struct{ p *agent.ClaudeProposer }
 
-func (w *proposerWrap) FirstRound(ctx context.Context, pointer string) (*adversarial.ProposerResult, error) {
+func (w *proposerWrap) FirstRound(ctx context.Context, pointer string) (*agon.ProposerResult, error) {
 	res, err := w.p.FirstRound(ctx, pointer)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (w *proposerWrap) FirstRound(ctx context.Context, pointer string) (*adversa
 	return fromInternal(res), nil
 }
 
-func (w *proposerWrap) NextRound(ctx context.Context, forkID, pointer string) (*adversarial.ProposerResult, error) {
+func (w *proposerWrap) NextRound(ctx context.Context, forkID, pointer string) (*agon.ProposerResult, error) {
 	res, err := w.p.NextRound(ctx, forkID, pointer)
 	if err != nil {
 		return nil, err
@@ -81,11 +81,11 @@ func (w *proposerWrap) NextRound(ctx context.Context, forkID, pointer string) (*
 	return fromInternal(res), nil
 }
 
-func fromInternal(r *agent.ProposerResult) *adversarial.ProposerResult {
-	return &adversarial.ProposerResult{
+func fromInternal(r *agent.ProposerResult) *agon.ProposerResult {
+	return &agon.ProposerResult{
 		ForkID:   r.ForkID,
 		Response: r.Response,
-		Usage: adversarial.TokenUsage{
+		Usage: agon.TokenUsage{
 			Input:       r.Usage.Input,
 			Output:      r.Usage.Output,
 			CacheCreate: r.Usage.CacheCreate,
@@ -99,10 +99,10 @@ func fromInternal(r *agent.ProposerResult) *adversarial.ProposerResult {
 // CriticOption configures a critic created by [NewCritic].
 type CriticOption func(*agent.ClaudeCritic)
 
-// NewCritic returns an [adversarial.Critic] that invokes `claude -p`
+// NewCritic returns an [agon.Critic] that invokes `claude -p`
 // (stateless, one-shot per round). It can serve as critic for any task
 // harness since it is independent of the implementation session.
-func NewCritic(opts ...CriticOption) adversarial.Critic {
+func NewCritic(opts ...CriticOption) agon.Critic {
 	c := &agent.ClaudeCritic{}
 	for _, o := range opts {
 		o(c)
@@ -112,16 +112,16 @@ func NewCritic(opts ...CriticOption) adversarial.Critic {
 
 type criticWrap struct{ c *agent.ClaudeCritic }
 
-func (w *criticWrap) Round(ctx context.Context, in adversarial.CriticInput) (*adversarial.CriticResult, error) {
+func (w *criticWrap) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticResult, error) {
 	internalIn := toInternalCriticInput(in)
 	res, err := w.c.Round(ctx, internalIn)
 	if err != nil {
 		return nil, err
 	}
-	return &adversarial.CriticResult{
+	return &agon.CriticResult{
 		Markdown: res.Markdown,
 		Tokens:   res.Tokens,
-		Usage: adversarial.TokenUsage{
+		Usage: agon.TokenUsage{
 			Input:       res.Usage.Input,
 			Output:      res.Usage.Output,
 			CacheCreate: res.Usage.CacheCreate,
@@ -137,7 +137,7 @@ func (w *criticWrap) Round(ctx context.Context, in adversarial.CriticInput) (*ad
 // using critic.Lookup so the internal prompt machinery gets the right
 // skeleton; the SystemPrompt field already contains the fully assembled
 // prompt so the Aspect.SystemPrompt is overridden immediately after.
-func toInternalCriticInput(in adversarial.CriticInput) agent.CriticInput {
+func toInternalCriticInput(in agon.CriticInput) agent.CriticInput {
 	out := agent.CriticInput{
 		// Aspect.Name drives ledger bookkeeping; SystemPrompt is the
 		// already-assembled prompt from the engine, so we set it directly.

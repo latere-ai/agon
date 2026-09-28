@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/critic"
+	"latere.ai/x/agon/internal/critic"
 )
 
 // Critic is the interface every critic driver satisfies.

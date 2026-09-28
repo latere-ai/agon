@@ -17,10 +17,10 @@ import (
 	"testing"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/agent"
-	"latere.ai/x/topos/adversarial/internal/ansi"
-	"latere.ai/x/topos/adversarial/internal/ledger"
-	"latere.ai/x/topos/adversarial/internal/state"
+	"latere.ai/x/agon/internal/agent"
+	"latere.ai/x/agon/internal/ansi"
+	"latere.ai/x/agon/internal/ledger"
+	"latere.ai/x/agon/internal/state"
 )
 
 type stubProposer struct {

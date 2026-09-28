@@ -9,9 +9,9 @@ import (
 	"slices"
 	"strings"
 
-	"latere.ai/x/topos/adversarial/internal/ledger"
-	"latere.ai/x/topos/adversarial/internal/round"
-	"latere.ai/x/topos/adversarial/internal/state"
+	"latere.ai/x/agon/internal/ledger"
+	"latere.ai/x/agon/internal/round"
+	"latere.ai/x/agon/internal/state"
 )
 
 // Render renders summary.md for one finished run.

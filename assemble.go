@@ -1,13 +1,13 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-package adversarial
+package agon
 
 import (
 	"fmt"
 	"strings"
 
-	"latere.ai/x/topos/adversarial/internal/agent"
+	"latere.ai/x/agon/internal/agent"
 )
 
 // assemblePrompt is the internal implementation of AssemblePrompt.

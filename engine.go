@@ -1,18 +1,18 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-package adversarial
+package agon
 
 import (
 	"context"
 	"errors"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/agent"
-	"latere.ai/x/topos/adversarial/internal/ledger"
-	"latere.ai/x/topos/adversarial/internal/round"
-	"latere.ai/x/topos/adversarial/internal/state"
-	"latere.ai/x/topos/adversarial/internal/summary"
+	"latere.ai/x/agon/internal/agent"
+	"latere.ai/x/agon/internal/ledger"
+	"latere.ai/x/agon/internal/round"
+	"latere.ai/x/agon/internal/state"
+	"latere.ai/x/agon/internal/summary"
 )
 
 // Engine orchestrates the multi-fork adversarial debate. The caller
@@ -45,8 +45,8 @@ const DefaultMaxRounds = 6
 func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	// StateDir is required and brand-neutral: the engine writes
 	// sessions/<id>/ under it and invents no default of its own. An empty
-	// StateDir is a caller error rather than a guess at a location, so topos
-	// stays embeddable by any host without baking in a path.
+	// StateDir is a caller error rather than a guess at a location, so the
+	// engine stays embeddable by any host without baking in a path.
 	if e.StateDir == "" {
 		return nil, errors.New("adversarial: StateDir is required")
 	}

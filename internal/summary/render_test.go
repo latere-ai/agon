@@ -8,8 +8,8 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"latere.ai/x/topos/adversarial/internal/ledger"
-	"latere.ai/x/topos/adversarial/internal/round"
+	"latere.ai/x/agon/internal/ledger"
+	"latere.ai/x/agon/internal/round"
 )
 
 // TestOneLineRuneBoundary pins that oneLine truncates on a rune

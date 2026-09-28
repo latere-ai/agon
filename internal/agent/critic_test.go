@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"latere.ai/x/topos/adversarial/internal/critic"
+	"latere.ai/x/agon/internal/critic"
 )
 
 func TestAssemblePrompt(t *testing.T) {

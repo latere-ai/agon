@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-// Package critic provides an [adversarial.Critic] backed by the topos runtime
+// Package critic provides an [agon.Critic] backed by the topos runtime
 // (latere.ai/x/topos).
 //
 // An embedder running inside the topos world (wallfacer, the hosted Topos
@@ -12,9 +12,9 @@
 //
 // Each round runs one topos agent over the assembled critic prompt (which
 // already contains the diff) and returns the agent's text verbatim as
-// [adversarial.CriticResult.Markdown]; the engine parses it like any other
+// [agon.CriticResult.Markdown]; the engine parses it like any other
 // backend. Within the adversarial capability only this package imports the
-// topos runtime, so the engine core ([adversarial]) and every other adversarial
+// topos runtime, so the engine core ([agon]) and every other adversarial
 // package stay free of that dependency (enforced by boundary_test.go).
 package critic
 
@@ -22,8 +22,8 @@ import (
 	"context"
 	"fmt"
 
+	"latere.ai/x/agon"
 	xtopos "latere.ai/x/topos"
-	adversarial "latere.ai/x/topos/adversarial"
 	"latere.ai/x/topos/sandbox"
 )
 
@@ -40,11 +40,11 @@ type Config struct {
 	Tools []string
 }
 
-// NewCriticFactory returns an [adversarial.CriticFactory] whose critics run one
+// NewCriticFactory returns an [agon.CriticFactory] whose critics run one
 // topos agent per round. forkIdx is threaded into the topos SessionID and the
 // AgentSpec name so each fork is a distinct trace node.
-func NewCriticFactory(cfg Config) adversarial.CriticFactory {
-	return func(forkIdx int) adversarial.Critic {
+func NewCriticFactory(cfg Config) agon.CriticFactory {
+	return func(forkIdx int) agon.Critic {
 		return &critic{cfg: cfg, forkIdx: forkIdx}
 	}
 }
@@ -57,7 +57,7 @@ type critic struct {
 // Round runs the assembled critic prompt through a single-agent Pinned region
 // and returns the agent's final text as CriticResult.Markdown. Token usage is
 // not reported: topos's public RunResult exposes none.
-func (c *critic) Round(ctx context.Context, in adversarial.CriticInput) (*adversarial.CriticResult, error) {
+func (c *critic) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticResult, error) {
 	// Match the subprocess critics, which bound each round by in.Deadline
 	// (internal/agent.CodexCritic / ClaudeCritic pass it to the subprocess).
 	if in.Deadline > 0 {
@@ -81,9 +81,9 @@ func (c *critic) Round(ctx context.Context, in adversarial.CriticInput) (*advers
 			Tools: append([]string{}, c.cfg.Tools...),
 		},
 	}
-	res, err := runner.Run(ctx, region, adversarial.AssemblePrompt(in))
+	res, err := runner.Run(ctx, region, agon.AssemblePrompt(in))
 	if err != nil {
 		return nil, fmt.Errorf("topos critic: run: %w", err)
 	}
-	return &adversarial.CriticResult{Markdown: res.Final}, nil
+	return &agon.CriticResult{Markdown: res.Final}, nil
 }

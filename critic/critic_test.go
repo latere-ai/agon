@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"latere.ai/x/agon"
+	nativecritic "latere.ai/x/agon/critic"
+	"latere.ai/x/agon/internal/critic"
 	xtopos "latere.ai/x/topos"
-	adversarial "latere.ai/x/topos/adversarial"
-	nativecritic "latere.ai/x/topos/adversarial/critic"
-	"latere.ai/x/topos/adversarial/internal/critic"
 	"latere.ai/x/topos/models"
 )
 
@@ -64,7 +64,7 @@ func (blockingModel) Stream(ctx context.Context, _ models.Request) (models.Strea
 	return nil, ctx.Err()
 }
 
-func runOnce(t *testing.T, cfg nativecritic.Config, in adversarial.CriticInput) *adversarial.CriticResult {
+func runOnce(t *testing.T, cfg nativecritic.Config, in agon.CriticInput) *agon.CriticResult {
 	t.Helper()
 	res, err := nativecritic.NewCriticFactory(cfg)(1).Round(context.Background(), in)
 	if err != nil {
@@ -73,8 +73,8 @@ func runOnce(t *testing.T, cfg nativecritic.Config, in adversarial.CriticInput) 
 	return res
 }
 
-func securityInput() adversarial.CriticInput {
-	return adversarial.CriticInput{
+func securityInput() agon.CriticInput {
+	return agon.CriticInput{
 		AspectName:   "security",
 		SystemPrompt: "you are a security critic",
 		CriticIndex:  1,

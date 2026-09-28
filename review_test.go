@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-package adversarial_test
+package agon_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	adversarial "latere.ai/x/topos/adversarial"
+	"latere.ai/x/agon"
 )
 
 // TestReview_EndToEnd runs the thin Review surface with a stub proposer and
@@ -28,12 +28,12 @@ func TestReview_EndToEnd(t *testing.T) {
 	proposer := &stubProposer{forkID: "fork-abc", reply: "concede c1-1 — fixed by hashing"}
 
 	stateDir := t.TempDir()
-	sum, err := adversarial.Review(context.Background(), adversarial.ReviewOptions{
+	sum, err := agon.Review(context.Background(), agon.ReviewOptions{
 		StateDir:    stateDir,
 		Cwd:         t.TempDir(),
 		Forks:       1,
 		Proposer:    proposer,
-		NewCritic:   func(_ int) adversarial.Critic { return critic },
+		NewCritic:   func(_ int) agon.Critic { return critic },
 		MaxRounds:   6,
 		CostCap:     1_000_000,
 		TaskContext: "add user login",
@@ -67,11 +67,11 @@ func TestReview_EndToEnd(t *testing.T) {
 // required, and an empty one is a caller error rather than a guess at a location
 // (no ~/.latere, no .topos/, no cwd-relative sessions/).
 func TestReview_EmptyStateDirErrors(t *testing.T) {
-	_, err := adversarial.Review(context.Background(), adversarial.ReviewOptions{
+	_, err := agon.Review(context.Background(), agon.ReviewOptions{
 		StateDir:  "",
 		Forks:     1,
 		Proposer:  &stubProposer{forkID: "f", reply: "ok"},
-		NewCritic: func(_ int) adversarial.Critic { return &stubCritic{} },
+		NewCritic: func(_ int) agon.Critic { return &stubCritic{} },
 	})
 	if err == nil {
 		t.Fatal("expected an error for empty StateDir, got nil")

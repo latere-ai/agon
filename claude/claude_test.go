@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"latere.ai/x/topos/adversarial/internal/agent"
+	"latere.ai/x/agon/internal/agent"
 )
 
 // TestWithProposerReadOnly locks the read-only denylist: the proposer must be

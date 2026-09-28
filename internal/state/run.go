@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/agent"
+	"latere.ai/x/agon/internal/agent"
 )
 
 // StartFile is the schema written to <session>/start.json.

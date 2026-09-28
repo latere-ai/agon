@@ -6,7 +6,7 @@ package summary
 import (
 	"testing"
 
-	"latere.ai/x/topos/adversarial/internal/ledger"
+	"latere.ai/x/agon/internal/ledger"
 )
 
 // TestSortByContentionScoreOrder drives the primary key: distinct scores

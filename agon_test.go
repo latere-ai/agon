@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-package adversarial_test
+package agon_test
 
 import (
 	"context"
@@ -11,51 +11,51 @@ import (
 	"testing"
 	"time"
 
-	adversarial "latere.ai/x/topos/adversarial"
+	"latere.ai/x/agon"
 )
 
-// stubProposer satisfies adversarial.Proposer.
+// stubProposer satisfies agon.Proposer.
 type stubProposer struct {
 	forkID string
 	reply  string
 }
 
-func (s *stubProposer) FirstRound(_ context.Context, _ string) (*adversarial.ProposerResult, error) {
-	return &adversarial.ProposerResult{ForkID: s.forkID, Response: s.reply, Duration: time.Millisecond}, nil
+func (s *stubProposer) FirstRound(_ context.Context, _ string) (*agon.ProposerResult, error) {
+	return &agon.ProposerResult{ForkID: s.forkID, Response: s.reply, Duration: time.Millisecond}, nil
 }
 
-func (s *stubProposer) NextRound(_ context.Context, forkID, _ string) (*adversarial.ProposerResult, error) {
-	return &adversarial.ProposerResult{ForkID: forkID, Response: s.reply, Duration: time.Millisecond}, nil
+func (s *stubProposer) NextRound(_ context.Context, forkID, _ string) (*agon.ProposerResult, error) {
+	return &agon.ProposerResult{ForkID: forkID, Response: s.reply, Duration: time.Millisecond}, nil
 }
 
-// stubCritic satisfies adversarial.Critic.
+// stubCritic satisfies agon.Critic.
 type stubCritic struct {
 	rounds []string
 	idx    int
 }
 
-func (s *stubCritic) Round(_ context.Context, _ adversarial.CriticInput) (*adversarial.CriticResult, error) {
+func (s *stubCritic) Round(_ context.Context, _ agon.CriticInput) (*agon.CriticResult, error) {
 	if s.idx >= len(s.rounds) {
-		return &adversarial.CriticResult{
+		return &agon.CriticResult{
 			Markdown: "# Critic 1 - round 99 attacks\n\naspect: security\n",
 			Duration: time.Millisecond,
 		}, nil
 	}
 	md := s.rounds[s.idx]
 	s.idx++
-	return &adversarial.CriticResult{Markdown: md, Duration: time.Millisecond}, nil
+	return &agon.CriticResult{Markdown: md, Duration: time.Millisecond}, nil
 }
 
 // TestAssemblePrompt verifies the public helper produces a non-empty
 // string containing the expected sections.
 func TestAssemblePrompt(t *testing.T) {
-	in := adversarial.CriticInput{
+	in := agon.CriticInput{
 		AspectName:   "security",
 		SystemPrompt: "you are a security critic",
 		TaskContext:  "add auth",
 		DiffPatch:    "+x := 1",
 	}
-	got := adversarial.AssemblePrompt(in)
+	got := agon.AssemblePrompt(in)
 	for _, want := range []string{"security critic", "# Task", "add auth", "# Diff", "+x := 1"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("AssemblePrompt output missing %q", want)
@@ -78,12 +78,12 @@ func TestEngineSteadyState(t *testing.T) {
 	critic := &stubCritic{rounds: []string{r1, r3}}
 	proposer := &stubProposer{forkID: "fork-abc", reply: "concede c1-1 — fixed by hashing"}
 
-	eng := &adversarial.Engine{
+	eng := &agon.Engine{
 		StateDir:    t.TempDir(),
 		Cwd:         t.TempDir(),
 		ForkCount:   1,
 		Proposer:    proposer,
-		NewCritic:   func(_ int) adversarial.Critic { return critic },
+		NewCritic:   func(_ int) agon.Critic { return critic },
 		MaxRounds:   6,
 		CostCap:     1_000_000,
 		TaskContext: "add user login",
@@ -116,12 +116,12 @@ func TestEngineSteadyState(t *testing.T) {
 func TestEngineRun_WritesEndJSON(t *testing.T) {
 	critic := &stubCritic{rounds: []string{"# Critic 1 - round 1 attacks\n\naspect: security\n"}}
 	proposer := &stubProposer{forkID: "fork-xyz", reply: "looks fine"}
-	eng := &adversarial.Engine{
+	eng := &agon.Engine{
 		StateDir:    t.TempDir(),
 		Cwd:         t.TempDir(),
 		ForkCount:   1,
 		Proposer:    proposer,
-		NewCritic:   func(_ int) adversarial.Critic { return critic },
+		NewCritic:   func(_ int) agon.Critic { return critic },
 		MaxRounds:   2,
 		CostCap:     1_000_000,
 		TaskContext: "add login",
@@ -144,12 +144,12 @@ func TestEngineRun_WritesEndJSON(t *testing.T) {
 // running a single round.
 func TestEngineCostCapZeroMeansUnbounded(t *testing.T) {
 	critic := &stubCritic{rounds: []string{"# Critic 1 - round 1 attacks\n\naspect: security\n"}}
-	eng := &adversarial.Engine{
+	eng := &agon.Engine{
 		StateDir:    t.TempDir(),
 		Cwd:         t.TempDir(),
 		ForkCount:   1,
 		Proposer:    &stubProposer{forkID: "fork-abc", reply: "ack"},
-		NewCritic:   func(_ int) adversarial.Critic { return critic },
+		NewCritic:   func(_ int) agon.Critic { return critic },
 		MaxRounds:   6,
 		CostCap:     0,
 		TaskContext: "add user login",
@@ -173,12 +173,12 @@ func TestEngineCostCapZeroMeansUnbounded(t *testing.T) {
 // round budget instead of zero rounds.
 func TestEngineMaxRoundsZeroDefaults(t *testing.T) {
 	critic := &stubCritic{rounds: []string{"# Critic 1 - round 1 attacks\n\naspect: security\n"}}
-	eng := &adversarial.Engine{
+	eng := &agon.Engine{
 		StateDir:    t.TempDir(),
 		Cwd:         t.TempDir(),
 		ForkCount:   1,
 		Proposer:    &stubProposer{forkID: "fork-abc", reply: "ack"},
-		NewCritic:   func(_ int) adversarial.Critic { return critic },
+		NewCritic:   func(_ int) agon.Critic { return critic },
 		CostCap:     1_000_000,
 		TaskContext: "add user login",
 		DiffPatch:   "+x := 1",

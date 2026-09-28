@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"latere.ai/x/topos/adversarial/internal/state"
+	"latere.ai/x/agon/internal/state"
 )
 
 func freshSession(t *testing.T) *state.Session {

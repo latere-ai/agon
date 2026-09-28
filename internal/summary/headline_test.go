@@ -7,7 +7,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"latere.ai/x/topos/adversarial/internal/ledger"
+	"latere.ai/x/agon/internal/ledger"
 )
 
 func recs() []ledger.Record {
