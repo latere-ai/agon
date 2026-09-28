@@ -15,7 +15,7 @@ func TestEncodeDecodeRoundtrip(t *testing.T) {
 	// cwd contains '-'; we mirror that and only round-trip cases
 	// without ambiguity.
 	cases := []string{
-		"/Users/changkun/dev/foo",
+		"/Users/ada/dev/foo",
 		"/srv/something/x",
 		"/",
 	}

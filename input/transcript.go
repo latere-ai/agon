@@ -36,12 +36,12 @@ var (
 
 // EncodeCwd encodes an absolute cwd into the segment claude uses under
 // ~/.claude/projects/<encoded>/. Claude replaces both `/` and `.` with
-// `-`, so /Users/x/dev/changkun.de/agents-byzantine-tolerance becomes
-// -Users-x-dev-changkun-de-agents-byzantine-tolerance. The encoding is
+// `-`, so /Users/ada/dev/example.com/review-benchmarks becomes
+// -Users-ada-dev-example-com-review-benchmarks. The encoding is
 // many-to-one (a directory containing `-` or `.` cannot be
 // distinguished from a path boundary), so DecodeCwd is best-effort.
 //
-//	/Users/changkun/dev/foo  ->  -Users-changkun-dev-foo
+//	/Users/ada/dev/foo  ->  -Users-ada-dev-foo
 func EncodeCwd(cwd string) string {
 	s := filepath.ToSlash(cwd)
 	s = strings.ReplaceAll(s, "/", "-")

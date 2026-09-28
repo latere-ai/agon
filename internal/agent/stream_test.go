@@ -112,7 +112,7 @@ func TestFormatClaudeStreamEventEmptyThinkingDropped(t *testing.T) {
 // absolute path stays intact: was clipped at 80 chars before, now
 // fits because summaryWidth is 120.
 func TestFormatClaudeStreamEventLongPathFitsInBudget(t *testing.T) {
-	path := "/Users/changkun/dev/changkun.de/agents-byzantine-tolerance/results/07_debate/README.md"
+	path := "/Users/ada/dev/example.com/adversarial-review-benchmarks/results/07_debate/README.md"
 	line := `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"` + path + `"}}]}}`
 	got := FormatClaudeStreamEvent([]byte(line))
 	if strings.Contains(got, "…") {
