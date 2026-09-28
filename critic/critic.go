@@ -26,8 +26,9 @@ import (
 	"strings"
 	"time"
 
-	"latere.ai/x/agon"
 	"latere.ai/x/pkg/luxsdk"
+
+	"latere.ai/x/agon"
 )
 
 // Config wires a critic to a model.

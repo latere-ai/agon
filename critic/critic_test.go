@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
+	"latere.ai/x/pkg/luxsdk"
+
 	"latere.ai/x/agon"
 	nativecritic "latere.ai/x/agon/critic"
 	"latere.ai/x/agon/internal/critic"
-	"latere.ai/x/pkg/luxsdk"
 )
 
 // cannedR1 is a well-formed round-1 attack block (critic 1, aspect security,
