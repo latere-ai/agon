@@ -1,8 +1,8 @@
 ---
 title: Debate protocol
-status: current
+status: complete
 track: adversarial
-updated: 2026-07-08
+updated: 2026-09-28
 author: changkun
 ---
 
@@ -12,9 +12,9 @@ This is the contract every backend follows. It is independent of which model or
 runtime backs the proposer and critics: the same markdown attack format, the same
 dispositions, the same ledger, the same termination rules. A backend swap changes
 who produces the text, never the protocol. Implemented across
-`adversarial/internal/critic` (format, aspects, parser),
-`adversarial/internal/ledger` (attack ledger), `adversarial/internal/round`
-(loop, termination), and `adversarial/internal/summary` (surfacing).
+`internal/critic` (format, aspects, parser),
+`internal/ledger` (attack ledger), `internal/round`
+(loop, termination), and `internal/summary` (surfacing).
 
 ## Roles and rounds
 
@@ -35,7 +35,7 @@ internal-consistency, evidence-gap). In round 1 the critic runs in **auto** mode
 and declares its aspect on the `aspect:` line. The orchestrator captures that
 declaration and switches the fork to **locked** mode, so rounds 3+ stay on the
 same topic instead of wandering. There is no fixed catalog; the prompts live in
-`adversarial/internal/critic/aspects.go`.
+`internal/critic/aspects.go`.
 
 ## Critic output format
 
@@ -92,7 +92,7 @@ renames it and the ledger connection is lost.
 ## The attack ledger
 
 Every attack transition is appended to `attacks.jsonl` (schema
-`adversarial.attack.v0`, `adversarial/internal/ledger`). A record carries the
+`adversarial.attack.v0`, `internal/ledger`). A record carries the
 attack ID, critic index, aspect, claim,
 location, `round_introduced`, `round_last_touched`, `rounds_survived`,
 `re_attacked`, `status`, and concession-file references. Statuses:
@@ -125,5 +125,5 @@ At the end, any attack still `open` or `rebutted` becomes `unresolved`. The
 headline is the highest-**contention** unresolved attack, scored purely as
 `rounds_survived + (1 if re_attacked)` - no model judges this layer. `summary.md`
 renders that headline plus the remaining open leaves and the resolved set. The
-score and render live in `adversarial/internal/summary`; the on-disk artifacts are
+score and render live in `internal/summary`; the on-disk artifacts are
 [Session format](027-session-format.md).

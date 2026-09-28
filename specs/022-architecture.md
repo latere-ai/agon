@@ -1,8 +1,8 @@
 ---
 title: Architecture
-status: current
+status: complete
 track: adversarial
-updated: 2026-07-08
+updated: 2026-09-28
 author: changkun
 ---
 
@@ -10,8 +10,8 @@ author: changkun
 
 ## What Adversarial Review is
 
-Adversarial Review is an **adversarial-review engine and protocol**, a capability
-of the Topos runtime. It is not a standalone tool. An embedder gives it a proposer
+Adversarial Review is an **adversarial-review engine and protocol**, shipped as
+the Go module `latere.ai/x/agon`. It is not a standalone tool. An embedder gives it a proposer
 (the implementation agent, defending a change) and one or more critics (attacking
 the change), and it runs a bounded, multi-round debate over the diff and returns a
 summary of what survived.
@@ -55,20 +55,20 @@ The protocol itself is [Debate protocol](026-protocol.md).
 
 | Layer | Package | Role |
 |---|---|---|
-| Public API | `adversarial` | The embedder contract: `Engine`, `Proposer`, `Critic`, `Verifier`, result types. See [engine-api.md](024-engine-api.md). |
-| Backends | `adversarial/{claude,critic}` | Ready-made proposer/critic implementations over the claude CLI and the Topos-native runtime. See [backends.md](023-backends.md). |
-| Inputs | `adversarial/input` | Locate the Claude transcript, compute the working-tree diff. See [inputs.md](025-inputs.md). |
-| Orchestration | `adversarial/internal/round` | The real round loop, termination detection, signal handling. |
-| Protocol | `adversarial/internal/critic`, `adversarial/internal/ledger` | Aspect prompts, attack format + parser, the attack ledger. |
-| Agents | `adversarial/internal/agent` | Subprocess drivers for the `claude` and `codex` CLIs. |
-| Persistence | `adversarial/internal/state` | Atomic on-disk session layout. See [session-format.md](027-session-format.md). |
-| Output | `adversarial/internal/summary`, `adversarial/internal/ansi` | Contention scoring, `summary.md` render, progress styling. |
+| Public API | `agon` | The embedder contract: `Engine`, `Proposer`, `Critic`, `Verifier`, result types. See [engine-api.md](024-engine-api.md). |
+| Backends | `claude`, `critic` | Ready-made proposer/critic implementations over the claude CLI and a single model call. See [backends.md](023-backends.md). |
+| Inputs | `input` | Locate the Claude transcript, compute the working-tree diff. See [inputs.md](025-inputs.md). |
+| Orchestration | `internal/round` | The real round loop, termination detection, signal handling. |
+| Protocol | `internal/critic`, `internal/ledger` | Aspect prompts, attack format + parser, the attack ledger. |
+| Agents | `internal/agent` | Subprocess drivers for the `claude` and `codex` CLIs. |
+| Persistence | `internal/state` | Atomic on-disk session layout. See [session-format.md](027-session-format.md). |
+| Output | `internal/summary`, `internal/ansi` | Contention scoring, `summary.md` render, progress styling. |
 
-`adversarial` re-exports the engine over the `adversarial/internal/*` packages; its
+`agon` re-exports the engine over the `internal/*` packages; its
 types carry no `internal/` dependency so out-of-module callers can satisfy the
-interfaces. Only `adversarial/critic` imports the Topos runtime root
-(`latere.ai/x/topos`), enforced by a boundary test, so the Topos-native runtime
-stays an opt-in backend and the adversarial core stays runtime-agnostic.
+interfaces. Only `critic` imports a model client (`latere.ai/x/pkg/luxsdk`), and
+no package depends on an agent runtime, both enforced by a boundary test, so the
+model-call critic stays an opt-in backend and the core stays runtime-agnostic.
 
 ## Consumers
 
@@ -77,17 +77,16 @@ Adversarial Review is embedded, not run directly:
 - **`latere review`** (latere-cli) is the developer CLI: it forks the real Claude
   Code session as the proposer and routes critics through Lux on the user's Latere
   identity.
-- **wallfacer** and the **hosted Topos platform** embed the engine inside the
-  Topos world, running critics through the governed runtime (model routing via Lux, Cella
-  sandboxes, trace).
+- **wallfacer** embeds the engine as its task verifier: the task's Claude Code
+  session is the proposer, and wallfacer's own harnesses run the critics.
 
 The canonical embedding pattern is in [Engine API](024-engine-api.md).
 
 ## Non-goals
 
-- **Not a standalone binary.** Adversarial Review is a capability of the Topos
-  runtime, imported as a library. The developer CLI lives in latere-cli as
-  `latere review`; this tree ships no installable of its own.
+- **Not a standalone binary.** Adversarial Review is imported as a library. The
+  developer CLI lives in latere-cli as `latere review`; this tree ships no
+  installable of its own.
 - **The proposer is not pluggable onto arbitrary runtimes.** It depends on
   `claude --resume <id> --fork-session` to reconstitute the real coding session;
   see [Backends](023-backends.md) for why. Critics are the pluggable layer.

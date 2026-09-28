@@ -18,6 +18,21 @@ hermetic:
   # measured rather than assumed.
   allow: [/usr/bin, /bin]
 
+spec:
+  # The engine's contracts describe shipped behavior and read `complete`; a
+  # proposal starts `drafted`; the specs that folded the engine into topos
+  # read `superseded` and live in .archive/. Closed at what the tree uses, so
+  # a status invented in review is caught.
+  status: [drafted, complete, superseded]
+  archive:
+    dir: .archive
+    statuses: [superseded]
+  # The numbers are stable identifiers that commits and other specs cite.
+  numbered: true
+  # Markdown tables are how these specs carry their surface descriptions, and
+  # a row whose cell count drifts renders as silently missing columns.
+  tables: true
+
 license:
   # The identifier every source file carries and the holder it names. There
   # is no default: this is the decision the gate checks the tree against.

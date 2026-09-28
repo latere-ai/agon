@@ -1,6 +1,6 @@
 ---
 title: Port the Backends and Input into Topos
-status: archived
+status: superseded
 depends_on:
   - specs/.archive/014-engine-core.md
 affects:

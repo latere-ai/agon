@@ -1,5 +1,6 @@
 - Respond short, precise, and concise.
 - If you didn't add a test, you didn't fix a bug. Every bug fix must include a reproducible test that fails without the fix and passes with it.
+- Specs live in specs/: the engine's contracts, under stable numbers. When a change alters a contract, the spec changes in the same commit.
 - Commit frequently, one small scope diff at a time. Push to main once a full batch of work is complete and verified.
 - Leftovers are cleaned up in follow-up commits.
 - `go tool lateregate` runs the whole bar, the same one CI runs; every package clears a 90% coverage floor unless `.lateregate.yaml` exempts it with a reason.

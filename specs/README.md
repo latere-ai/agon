@@ -1,13 +1,12 @@
 # Adversarial Review specs
 
-Adversarial Review is a Topos capability: an **adversarial-review engine and
-protocol**. After a coding agent produces a change, it forks the session, runs one
-or more independent critics that attack the diff, lets the proposer defend or
-concede, and surfaces only the disputes that survive. It is imported as a library
-from Topos (`latere.ai/x/topos/adversarial`), not run as a standalone tool: the
-developer CLI is `latere review` in
-[latere-cli](https://github.com/latere-ai/latere-cli), and the same engine is
-embedded by wallfacer and the hosted Topos platform.
+Adversarial Review is an **adversarial-review engine and protocol**, the Go
+module `latere.ai/x/agon`. After a coding agent produces a change, it forks the
+session, runs one or more independent critics that attack the diff, lets the
+proposer defend or concede, and surfaces only the disputes that survive. It is
+imported as a library, not run as a standalone tool: the developer CLI is
+`latere review` in [latere-cli](https://github.com/latere-ai/latere-cli), and
+the same engine is embedded by wallfacer.
 
 These specs are the current-state contracts for the engine and its protocol. They
 describe what the code does today, not a build history. The roadmap at the bottom
@@ -15,15 +14,23 @@ describes what comes next.
 
 ## Contracts
 
-- [Architecture](022-architecture.md) - what the capability is, the fork/debate model, the component map, and its consumers.
-- [Debate protocol](026-protocol.md) - the wire contract: roles, rounds, the critic attack format, dispositions, the attack ledger, termination, and headline surfacing.
-- [Engine API](024-engine-api.md) - the public Go embedder contract (`adversarial`): `Engine`, `Proposer`, `Critic`, `Verifier`, and the result types.
-- [Backends](023-backends.md) - proposer and critic backends: the claude and codex CLIs, and the Topos-native governed runtime.
-- [Inputs](025-inputs.md) - `adversarial/input`: locating the Claude transcript and computing the working-tree diff.
-- [Session format](027-session-format.md) - the on-disk `<StateDir>/sessions/<id>/` layout, artifacts, and schema versions.
+| Spec | Status | What it covers |
+|---|---|---|
+| [Architecture](022-architecture.md) | complete | What the engine is, the fork/debate model, the component map, and its consumers |
+| [Backends](023-backends.md) | complete | Proposer and critic backends: the claude and codex CLIs, and the model-call critic |
+| [Engine API](024-engine-api.md) | complete | The public Go embedder contract (`agon`): `Engine`, `Proposer`, `Critic`, `Verifier`, and the result types |
+| [Inputs](025-inputs.md) | complete | `input`: locating the Claude transcript and computing the working-tree diff |
+| [Debate protocol](026-protocol.md) | complete | The wire contract: roles, rounds, the critic attack format, dispositions, the attack ledger, termination, and headline surfacing |
+| [Session format](027-session-format.md) | complete | The on-disk `<StateDir>/sessions/<id>/` layout, artifacts, and schema versions |
 
-The [`.archive/`](.archive/) directory holds the migration specs that folded this
-capability into Topos, kept as historical record.
+The [`.archive/`](.archive/) directory holds 013 to 018, the specs that folded
+the engine into the Topos runtime, where it lived until it became this module.
+They are kept as a historical record and read `superseded`.
+
+The numbers are the ones these specs carried in the topos repository. Commits
+and other specs cite them, so they are kept. The gaps are topos's own: its
+runtime specs hold 001 to 012 and 028 onward, and 019 to 021 were never used. A
+new spec here takes the next number after 027.
 
 ## Conventions
 
@@ -32,14 +39,15 @@ Each spec opens with YAML frontmatter:
 ```yaml
 ---
 title: <human-readable title>
-status: current | proposed | exploratory
+status: drafted | complete | superseded
 updated: YYYY-MM-DD
 author: changkun
 ---
 ```
 
-`current` means the spec describes shipped behavior; `proposed` and `exploratory`
-appear in the roadmap below. Prose is plain and explanatory; do not use em dashes.
+`complete` means the spec describes shipped behavior, `drafted` a proposal not
+yet built, and `superseded` a record replaced by later work, which lives in
+`.archive/`. Prose is plain and explanatory; do not use em dashes.
 
 ## Roadmap
 
@@ -49,23 +57,11 @@ explored. Nothing here is a commitment; each item names what would move it forwa
 
 ### Engine and integration (near-term)
 
-Finishing the Topos/Lux critic backend and hardening the embedder surface. Concrete
-items carried over from the native critic work (`adversarial/critic`):
+Hardening the embedder surface:
 
-- **Token usage from the runtime.** The runtime now emits `EventUsage` per turn
-  and `Runner.Turn` returns `TurnResult.Usage`, but `RunResult` still carries only
-  the trace and the final text, so the native critic reports zero and falls
-  outside the engine's cost-cap accounting. Either sum `EventUsage` through an
-  observer or carry the total on `RunResult`. This is the one gap that keeps
-  native critics "sound for correctness but not for cost".
-- **Cella workspace wiring.** How an embedder's worktree reaches a Cella sandbox
-  cwd (mount versus copy). Moot for the local sandbox and wallfacer's existing
-  worktree; needed when a Cella embedder arrives.
-- **Trace surfacing.** Optionally carry Topos trace node IDs on `Summary` /
-  `ForkOutcome` so an embedder can correlate critic forks with its own graph.
-- **A codex backend package.** Promote the codex critic into an
-  `adversarial/codex` sibling of `claude`/`critic` once the API shape is settled.
-- **API stabilization.** Move `adversarial` toward a stable, semver-committed
+- **A codex backend package.** Promote the codex critic into a
+  `codex` sibling of `claude` and `critic` once the API shape is settled.
+- **API stabilization.** Move `agon` toward a stable, semver-committed
   surface. The protocol is more stable than the Go surface; the Go surface catches
   up.
 - **Per-critic model configuration** and **parallel forks** via per-fork git

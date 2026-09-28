@@ -1,6 +1,6 @@
 ---
 title: Migrate wallfacer to the Topos Adversarial Capability
-status: archived
+status: superseded
 depends_on:
   - specs/.archive/016-capability-surface.md
 affects:

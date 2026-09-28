@@ -1,14 +1,14 @@
 ---
 title: Inputs
-status: current
+status: complete
 track: adversarial
-updated: 2026-07-08
+updated: 2026-09-28
 author: changkun
 ---
 
 # Inputs
 
-`adversarial/input` gives an embedder the two inputs a debate needs that are not
+`input` gives an embedder the two inputs a debate needs that are not
 the embedder's own: the coding agent's session transcript and the working-tree
 diff. It is a public package so `latere review` and other embedders build a
 `VerifyInput` (or fill an `Engine`) without re-implementing transcript location or

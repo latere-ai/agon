@@ -1,17 +1,16 @@
 ---
 title: Engine API
-status: current
+status: complete
 track: adversarial
-updated: 2026-07-08
+updated: 2026-09-28
 author: changkun
 ---
 
 # Engine API
 
-The public embedder contract is the `adversarial` package (`adversarial.go`,
+The public embedder contract is the `agon` package (`agon.go`,
 `engine.go`, `assemble.go`, `review.go`). Its types carry no `internal/`
-dependency, so any module that imports Topos can implement the interfaces and
-drive a debate. There are two entry points over the same machinery: `Review`
+dependency, so any module can implement the interfaces and drive a debate. There are two entry points over the same machinery: `Review`
 (with `ReviewOptions`) is the single call that covers the common case, and it
 builds and runs the `Engine` underneath. An embedder that needs per-fork control
 supplies a `Proposer` and a `CriticFactory`, sets them on an `Engine`, calls
@@ -20,9 +19,9 @@ supplies a `Proposer` and a `CriticFactory`, sets them on an `Engine`, calls
 ## Canonical embedding pattern
 
 ```go
-import "latere.ai/x/topos/adversarial"
+import "latere.ai/x/agon"
 
-sum, err := (&adversarial.Engine{
+sum, err := (&agon.Engine{
     StateDir:    stateDir,   // parent of sessions/<id>/
     Cwd:         cwd,        // working directory for agent calls
     ForkCount:   forks,      // independent critics
@@ -92,7 +91,7 @@ implementation.
 
 ## Stability
 
-The `adversarial` package is pre-1.0 and semver-exempt: the surface can change
+The `agon` package is pre-1.0 and semver-exempt: the surface can change
 while the protocol and embedders stabilize. Stabilizing it is a roadmap item. The
 protocol in [Debate protocol](026-protocol.md) is more stable than the Go surface,
 since it is what crosses the model boundary.

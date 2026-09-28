@@ -1,8 +1,8 @@
 ---
 title: Backends
-status: current
+status: complete
 track: adversarial
-updated: 2026-07-08
+updated: 2026-09-28
 author: changkun
 ---
 
@@ -11,12 +11,12 @@ author: changkun
 A backend produces the proposer's or critic's text. Adversarial Review ships
 three, behind the [Engine API](024-engine-api.md) interfaces, so an embedder chooses
 the runtime without changing the [protocol](026-protocol.md). The subprocess drivers
-live in `adversarial/internal/agent`; the public wrappers in
-`adversarial/{claude,critic}`.
+live in `internal/agent`; the public wrappers in
+`claude`, `critic`.
 
 ## Proposer: the claude CLI
 
-`adversarial/claude.NewProposer(sessionID, cwd, opts...)` drives the
+`claude.NewProposer(sessionID, cwd, opts...)` drives the
 implementation agent through `claude --resume <sessionID> --fork-session`. This
 is the only proposer, and deliberately so: forking the real Claude Code session
 reconstitutes its full transcript, harness context, tool results, and working
@@ -33,9 +33,9 @@ Options:
 
 ## Critic: the claude and codex CLIs
 
-- `adversarial/claude.NewCritic(opts...)` invokes `claude -p` - stateless, one
+- `claude.NewCritic(opts...)` invokes `claude -p` - stateless, one
   call per round, usable as a critic for any task harness.
-- `adversarial/internal/agent`'s `CodexCritic` runs `codex exec --sandbox
+- `internal/agent`'s `CodexCritic` runs `codex exec --sandbox
   read-only --json`. Its read-only sandbox lets it open files the diff does not
   touch, which the prompt-only critics cannot.
 
@@ -44,40 +44,38 @@ activity is visible live while a call runs. The toggle is internal
 (`Verbose` plus `EventOut` on the driver structs); the public wrappers expose
 no option for it yet.
 
-## Critic: the Topos-native runtime
+## Critic: one model call
 
-`adversarial/critic.NewCriticFactory(cfg)` runs each critic as a single read-only
-agent in the Topos runtime instead of a local subprocess. This is for embedders
-already inside the Topos world (wallfacer, the hosted Topos platform): model
-routing goes through Lux or Direct, execution runs in a Topos sandbox (local or
-Cella), and every fork is a distinct trace node. Secrets stay in the gateway and billing
-is centralized.
+`critic.NewCriticFactory(cfg)` runs each critic round as one model call instead
+of a local subprocess. This is for embedders that reach models through the Lux
+gateway or a provider API rather than a local CLI: through the gateway, secrets
+stay in the gateway and billing is centralized.
 
-`Config` carries `Model` (`xtopos.ModelOptions`: Lux, Direct, or Fake, or a
-`Client` the caller supplies outright — tests set a scripted model there),
-`Sandbox` (nil uses the local sandbox), and `Tools`. Nil or empty `Tools` grants
-no tools; the critic reasons over the diff embedded in the assembled prompt.
-Explicit tools use the runtime's builtin names or families, and the runtime
-enforces the grant at both model exposure and dispatch. `Grants` records the
-concrete registry names. Each round runs one `Pinned` single-agent region
-over `AssemblePrompt(in)` and returns the agent's final text as
+`Config` carries `Model`, a `luxsdk.Caller` (the gateway's `luxsdk.Client` or a
+provider-direct `luxsdk.Direct`; tests supply a scripted caller), and `Name`, the
+model id each request names; a round's `CriticInput.Model` overrides it. Each
+round sends `AssemblePrompt(in)` as one user turn with no tools, so the critic
+reasons over the diff embedded in the prompt, under a fixed output cap. The text
+blocks of the response, joined in order, are returned verbatim as
 `CriticResult.Markdown`.
 
-The Topos-native critic reports zero token usage today, because the runtime's
-public `RunResult` exposes none; that excludes it from cost-cap accounting until
-the runtime surfaces usage (see the [roadmap](adversarial-README.md#roadmap)).
+The response's usage fills `CriticResult.Usage` (input, output, cache read and
+cache write tokens), `Tokens` (input plus output, as the subprocess critics count
+it) and `Duration`, and `USD` when the gateway reports a cost. The critic
+therefore counts against the engine's cost cap like the subprocess critics.
 
 ## The boundary
 
-Only `adversarial/critic` may import the Topos runtime root (`latere.ai/x/topos`),
-enforced by `adversarial/critic/boundary_test.go`. The adversarial engine core and
-every other backend stay runtime-free, so the Topos-native critic is an opt-in
-backend: an embedder that does not use it never pulls the runtime into its critic
-path.
+Only `critic` may import the model client (`latere.ai/x/pkg/luxsdk`), and no
+package of the module may depend on an agent runtime (`latere.ai/x/topos`),
+both enforced by `critic/boundary_test.go`. The engine core and every other
+backend stay free of a model client, so the model-call critic is an opt-in
+backend: an embedder that does not use it never pulls a model client into its
+critic path.
 
 ## Model diversity
 
 Cross-examination is stronger when proposer and critic have independent failure
 modes. Diversity comes from pointing the critic backend at a different model or
-provider (a non-Claude model via `ModelOptions`, or the codex CLI), not from a
-separate adversary package. The proposer stays on claude regardless.
+provider (a non-Claude model through `critic.Config`, or the codex CLI), not
+from a separate adversary package. The proposer stays on claude regardless.

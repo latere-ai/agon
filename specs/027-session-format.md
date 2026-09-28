@@ -1,8 +1,8 @@
 ---
 title: Session format
-status: current
+status: complete
 track: adversarial
-updated: 2026-07-08
+updated: 2026-09-28
 author: changkun
 ---
 
@@ -13,8 +13,8 @@ The engine invents no default path and writes nothing into the reviewed repo; ea
 consumer owns its location. latere-cli writes under `$XDG_STATE_HOME/latere/reviews/<repo>/`
 (fallback `~/.local/state/latere/reviews/<repo>/`); wallfacer writes under its
 server data dir. The layout is a stable, versioned contract: an embedder or a tool
-can read it without linking the capability. Written by `adversarial/internal/state`
-(atomic) and `adversarial/internal/summary` (the terminal render); a run lives
+can read it without linking the capability. Written by `internal/state`
+(atomic) and `internal/summary` (the terminal render); a run lives
 under `sessions/<id>/` where the id is `<YYYYMMDDTHHMMSSZ>-<rand6>`.
 
 ## Layout
