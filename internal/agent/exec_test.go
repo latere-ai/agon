@@ -61,7 +61,7 @@ func TestExecCancellation(t *testing.T) {
 		Cwd: t.TempDir(), Env: CleanEnv(), Deadline: 10 * time.Second,
 	})
 	if err == nil {
-		t.Fatal("expected error from cancelled exec")
+		t.Fatal("expected error from canceled exec")
 	}
 	if !res.Killed {
 		t.Error("expected Killed=true")

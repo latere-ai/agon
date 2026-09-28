@@ -38,7 +38,7 @@ var proposerReadOnlyTools = []string{"Write", "Edit", "MultiEdit", "NotebookEdit
 
 // WithProposerReadOnly restricts the proposer to read-only tools (no Write,
 // Edit, MultiEdit, NotebookEdit, or Bash). Use it when the proposer runs in a
-// working tree that must not be modified — e.g. an embedded verifier whose
+// working tree that must not be modified, e.g. an embedded verifier whose
 // proposer shares the real task worktree. The proposer can still read the code
 // to argue and concede; it simply cannot edit it.
 func WithProposerReadOnly() ProposerOption {

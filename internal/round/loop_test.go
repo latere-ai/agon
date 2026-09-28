@@ -458,7 +458,7 @@ func TestEngineHeartbeatDuringSlowAgent(t *testing.T) {
 	if n < 2 {
 		t.Errorf("expected ≥2 'still running' lines from a 300ms critic at 80ms tick, got %d. output:\n%s", n, out)
 	}
-	// The heartbeat should be cancelled the moment the call returns:
+	// The heartbeat should be canceled the moment the call returns:
 	// no heartbeat line may appear AFTER the "done in" line for the
 	// same role/turn (otherwise we have a goroutine leak).
 	doneIdx := strings.Index(out, " critic done in ")
@@ -467,7 +467,7 @@ func TestEngineHeartbeatDuringSlowAgent(t *testing.T) {
 	}
 	tail := out[doneIdx:]
 	if strings.Contains(tail, "T1 critic: still running") {
-		t.Errorf("heartbeat fired AFTER 'critic done' - goroutine not cancelled. tail:\n%s", tail)
+		t.Errorf("heartbeat fired AFTER 'critic done' - goroutine not canceled. tail:\n%s", tail)
 	}
 }
 
@@ -486,7 +486,7 @@ func TestEngineInterruptDuringAgentCall(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	// A slow critic that blocks long enough for us to cancel mid-call;
-	// slowCritic returns ctx.Err() when the context is cancelled.
+	// slowCritic returns ctx.Err() when the context is canceled.
 	slow := &slowCritic{rounds: []string{r1}, delay: 5 * time.Second}
 	e := &Engine{
 		Sess: sess, Cwd: t.TempDir(),

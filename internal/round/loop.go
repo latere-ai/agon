@@ -133,7 +133,7 @@ func (e *Engine) startHeartbeat(ctx context.Context, start time.Time, prefix str
 	if e.Progress == nil || tick <= 0 {
 		return func() {}
 	}
-	// Derived from the caller's context so a cancelled run stops the
+	// Derived from the caller's context so a canceled run stops the
 	// heartbeat with it rather than leaving a goroutine ticking on a
 	// background context nobody can cancel.
 	ctx, cancel := context.WithCancel(ctx)
@@ -309,7 +309,7 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 			res, stats, err := e.criticRound(ctx, cri, a, forkIdx, round, priorIDs)
 			stop()
 			if err != nil {
-				// A cancelled parent context (Ctrl-C / SIGTERM) surfaces
+				// A canceled parent context (Ctrl-C / SIGTERM) surfaces
 				// here as an agent error. Treat it as an interrupt so the
 				// finalize/summary path still runs and already-completed
 				// rounds are persisted, rather than as a fatal error that
@@ -389,7 +389,7 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 			}
 			stop()
 			if err != nil {
-				// See the critic branch above: a cancelled parent context
+				// See the critic branch above: a canceled parent context
 				// is an interrupt, not a fatal error, so let finalize run.
 				if ctx.Err() != nil || errors.Is(err, context.Canceled) {
 					runStop = TermInterrupted

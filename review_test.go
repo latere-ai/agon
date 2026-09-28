@@ -25,7 +25,7 @@ func TestReview_EndToEnd(t *testing.T) {
 	r3 := "# Critic 1 - round 3 attacks\n\naspect: security\n"
 
 	critic := &stubCritic{rounds: []string{r1, r3}}
-	proposer := &stubProposer{forkID: "fork-abc", reply: "concede c1-1 — fixed by hashing"}
+	proposer := &stubProposer{forkID: "fork-abc", reply: "concede c1-1: fixed by hashing"}
 
 	stateDir := t.TempDir()
 	sum, err := agon.Review(context.Background(), agon.ReviewOptions{

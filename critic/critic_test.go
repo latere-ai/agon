@@ -57,7 +57,7 @@ func textResponse(text string) luxsdk.Response {
 }
 
 // blockingCaller never answers; it blocks until the request context is
-// cancelled, then surfaces ctx.Err(). It lets a test observe whether Round's
+// canceled, then surfaces ctx.Err(). It lets a test observe whether Round's
 // per-round deadline actually bounds the model call.
 type blockingCaller struct{}
 
@@ -177,7 +177,7 @@ func TestRoundModelOverride(t *testing.T) {
 
 // TestRoundHonorsDeadline pins the per-round budget: CriticInput.Deadline is a
 // time.Duration (a budget from the moment Round is called), so Round applies
-// it via context.WithTimeout and a model that never returns is cancelled
+// it via context.WithTimeout and a model that never returns is canceled
 // rather than running unbounded. A tiny positive deadline must surface
 // context.DeadlineExceeded promptly.
 func TestRoundHonorsDeadline(t *testing.T) {
