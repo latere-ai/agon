@@ -79,7 +79,5 @@ google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBN
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-latere.ai/x/pkg v0.80.0 h1:prk2BLcoT0lBqvfvfNDwPystDg0DHHTCVQzEzaup0a4=
-latere.ai/x/pkg v0.80.0/go.mod h1:yxQLW/TtCUrCVLZ1g6KgNZ14+lDJ/FiTl50t/2fi35s=
-latere.ai/x/topos v0.7.0 h1:nqvWI4DRdM6ioYS4cAHM8XjURqJQG+PszsM8m5R8Ucs=
-latere.ai/x/topos v0.7.0/go.mod h1:yFaKFboXLknferFSAbHTWumOtZs2TrFuljZJtqshOFM=
+latere.ai/x/pkg v0.90.0 h1:elW9iG35ZBY+4xJdf8ynNYw68wJ60KyofwAYp0KRB0Q=
+latere.ai/x/pkg v0.90.0/go.mod h1:L4Z/J7iyc6tY79/sphRmmbtA9/RKZt1Dc08lMa/ETso=

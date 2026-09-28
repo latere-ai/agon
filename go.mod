@@ -2,10 +2,7 @@ module latere.ai/x/agon
 
 go 1.27.0
 
-require (
-	latere.ai/x/pkg v0.80.0
-	latere.ai/x/topos v0.7.0
-)
+require latere.ai/x/pkg v0.90.0
 
 require (
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect

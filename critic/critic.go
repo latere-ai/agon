@@ -1,63 +1,81 @@
 // SPDX-FileCopyrightText: 2026 Latere AI
 // SPDX-License-Identifier: Apache-2.0
 
-// Package critic provides an [agon.Critic] backed by the topos runtime
-// (latere.ai/x/topos).
+// Package critic provides an [agon.Critic] that makes one model call per
+// round through a [luxsdk.Caller].
 //
-// An embedder running inside the topos world (wallfacer, the hosted Topos
-// platform) uses [NewCriticFactory] to run critic forks through the governed
-// runtime: model routing via Lux or Direct, a topos sandbox (local or Cella),
-// and a trace record, instead of shelling out to local CLIs. The proposer
-// stays on the claude CLI; see the claude backend package.
+// The caller is either the Lux gateway client ([luxsdk.New]) or a
+// provider-direct caller ([luxsdk.NewDirect]); the critic sees only the call
+// surface both satisfy. Each round sends the assembled critic prompt, which
+// already contains the diff, as one user turn with no tools, and returns the
+// model's text verbatim as [agon.CriticResult.Markdown]; the engine parses it
+// like any other backend's. The response's usage fills the result's token
+// counts, so these critics count against the engine's cost cap like the
+// subprocess critics do.
 //
-// Each round runs one topos agent over the assembled critic prompt (which
-// already contains the diff) and returns the agent's text verbatim as
-// [agon.CriticResult.Markdown]; the engine parses it like any other
-// backend. Within the adversarial capability only this package imports the
-// topos runtime, so the engine core ([agon]) and every other adversarial
-// package stay free of that dependency (enforced by boundary_test.go).
+// Within the module only this package calls a model API, so the engine core
+// ([agon]) and every other package stay free of that dependency (enforced by
+// boundary_test.go).
 package critic
 
 import (
+	"cmp"
 	"context"
+	"errors"
 	"fmt"
+	"strings"
+	"time"
 
 	"latere.ai/x/agon"
-	xtopos "latere.ai/x/topos"
-	"latere.ai/x/topos/sandbox"
+	"latere.ai/x/pkg/luxsdk"
 )
 
-// Config wires a topos-backed critic to a model and sandbox.
+// Config wires a critic to a model.
 type Config struct {
-	// Model selects the model connection (Lux, Direct, or Fake). Tests set its
-	// Client to a scripted model; production sets Kind and leaves Client nil.
-	Model xtopos.ModelOptions
-	// Sandbox is the execution backend; nil uses topos's local sandbox.
-	Sandbox sandbox.Provider
-	// Tools explicitly enables builtin tools by name or family. Nil and empty
-	// grant no tools: the critic reasons over the diff embedded in its prompt.
-	// The runtime enforces this selection at both model exposure and dispatch.
-	Tools []string
+	// Model is the model connection: a [luxsdk.Client] for the gateway or a
+	// [luxsdk.Direct] for a provider. Required.
+	Model luxsdk.Caller
+	// Name is the model id each request names. A round's
+	// [agon.CriticInput.Model] overrides it when set.
+	Name string
 }
 
-// NewCriticFactory returns an [agon.CriticFactory] whose critics run one
-// topos agent per round. forkIdx is threaded into the topos SessionID and the
-// AgentSpec name so each fork is a distinct trace node.
+// maxOutputTokens caps one round's output. It is the cap the agent loop that
+// ran this critic before applied to every turn, kept so a round's output
+// budget did not change when the loop went away.
+const maxOutputTokens int64 = 4096
+
+// microsPerUSD converts the gateway's cost, reported in millionths of a USD.
+const microsPerUSD = 1e6
+
+var (
+	errNoModel     = errors.New("critic: Config.Model is required")
+	errNoModelName = errors.New("critic: no model name: set Config.Name or CriticInput.Model")
+)
+
+// NewCriticFactory returns an [agon.CriticFactory] whose critics make one
+// model call per round. The critic holds no state across rounds, so every
+// fork shares the same configuration.
 func NewCriticFactory(cfg Config) agon.CriticFactory {
-	return func(forkIdx int) agon.Critic {
-		return &critic{cfg: cfg, forkIdx: forkIdx}
+	return func(int) agon.Critic {
+		return &critic{cfg: cfg}
 	}
 }
 
 type critic struct {
-	cfg     Config
-	forkIdx int
+	cfg Config
 }
 
-// Round runs the assembled critic prompt through a single-agent Pinned region
-// and returns the agent's final text as CriticResult.Markdown. Token usage is
-// not reported: topos's public RunResult exposes none.
+// Round sends the assembled critic prompt as a single tool-free turn and
+// returns the model's text as CriticResult.Markdown, with the call's usage.
 func (c *critic) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticResult, error) {
+	if c.cfg.Model == nil {
+		return nil, errNoModel
+	}
+	model := cmp.Or(in.Model, c.cfg.Name)
+	if model == "" {
+		return nil, errNoModelName
+	}
 	// Match the subprocess critics, which bound each round by in.Deadline
 	// (internal/agent.CodexCritic / ClaudeCritic pass it to the subprocess).
 	if in.Deadline > 0 {
@@ -65,25 +83,56 @@ func (c *critic) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticRe
 		ctx, cancel = context.WithTimeout(ctx, in.Deadline)
 		defer cancel()
 	}
-	runner, err := xtopos.NewRunner(xtopos.Options{
-		SessionID: fmt.Sprintf("adversarial-critic-%d-r%d", c.forkIdx, in.Round),
-		Model:     c.cfg.Model,
-		Sandbox:   c.cfg.Sandbox,
+	maxTokens := maxOutputTokens
+	start := time.Now()
+	res, err := c.cfg.Model.Generate(ctx, &luxsdk.Request{
+		Model:     model,
+		Messages:  []luxsdk.Message{luxsdk.UserText(agon.AssemblePrompt(in))},
+		MaxTokens: &maxTokens,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("topos critic: new runner: %w", err)
+		return nil, fmt.Errorf("critic: generate: %w", err)
 	}
-	region := xtopos.Region{
-		Autonomy: xtopos.Pinned,
-		Entry: xtopos.AgentSpec{
-			Name:  fmt.Sprintf("critic-%d", c.forkIdx),
-			Role:  "critic",
-			Tools: append([]string{}, c.cfg.Tools...),
-		},
+	duration := time.Since(start)
+	usage := agon.TokenUsage{
+		Input:       int(res.Usage.InputTokens),
+		Output:      int(res.Usage.OutputTokens),
+		CacheCreate: int(deref(res.Usage.CacheWriteInputTokens)),
+		CacheRead:   int(deref(res.Usage.CacheReadInputTokens)),
 	}
-	res, err := runner.Run(ctx, region, agon.AssemblePrompt(in))
-	if err != nil {
-		return nil, fmt.Errorf("topos critic: run: %w", err)
+	return &agon.CriticResult{
+		Markdown: text(res.Blocks),
+		// Input plus output, as the subprocess critics count it; the cache
+		// buckets stay in Usage.
+		Tokens:   usage.Input + usage.Output,
+		Usage:    usage,
+		USD:      usd(res.Usage.CostUSDMicro),
+		Duration: duration,
+	}, nil
+}
+
+// text joins the response's text blocks, skipping reasoning and any other
+// block kind, which are not part of the attack document.
+func text(blocks []luxsdk.Block) string {
+	var b strings.Builder
+	for _, blk := range blocks {
+		if blk.Type == luxsdk.BlockText {
+			b.WriteString(blk.Text)
+		}
 	}
-	return &agon.CriticResult{Markdown: res.Final}, nil
+	return b.String()
+}
+
+// usd converts a reported cost to dollars. A provider-direct caller reports
+// none, and CriticResult has no unknown state, so an unreported cost is zero.
+func usd(micros *int64) float64 {
+	return float64(deref(micros)) / microsPerUSD
+}
+
+// deref reads an optional usage figure, with an unreported one as zero.
+func deref(p *int64) int64 {
+	if p == nil {
+		return 0
+	}
+	return *p
 }

@@ -6,15 +6,13 @@ package critic_test
 import (
 	"context"
 	"errors"
-	"io"
 	"testing"
 	"time"
 
 	"latere.ai/x/agon"
 	nativecritic "latere.ai/x/agon/critic"
 	"latere.ai/x/agon/internal/critic"
-	xtopos "latere.ai/x/topos"
-	"latere.ai/x/topos/models"
+	"latere.ai/x/pkg/luxsdk"
 )
 
 // cannedR1 is a well-formed round-1 attack block (critic 1, aspect security,
@@ -27,39 +25,48 @@ const cannedR1 = "# Critic 1 - round 1 attacks\n\n" +
 	"expected violation: An attacker can inject boolean logic via q=%' OR 1=1--.\n\n" +
 	"reproduction:\n```\ncurl 'http://localhost:8000/search?q=1'\n```\n"
 
-// scriptedModel is a models.Model that emits a fixed text body then ends the
-// turn, so a critic round is deterministic and network-free.
-type scriptedModel struct{ text string }
+// modelName is the model id the tests configure.
+const modelName = "critic-model"
 
-func (b scriptedModel) Stream(_ context.Context, _ models.Request) (models.Stream, error) {
-	return &scriptStream{events: []models.Event{
-		{Kind: models.KindTextDelta, TextDelta: b.text},
-		{Kind: models.KindDone, StopReason: models.StopEndTurn},
-	}}, nil
+// scriptedCaller is a luxsdk.Caller that records the request it was sent and
+// answers from a fixed response, so a critic round is deterministic and
+// network-free.
+type scriptedCaller struct {
+	resp  luxsdk.Response
+	err   error
+	delay time.Duration // how long the call takes before it answers
+	got   *luxsdk.Request
 }
 
-type scriptStream struct {
-	events []models.Event
-	i      int
-}
-
-func (s *scriptStream) Recv() (models.Event, error) {
-	if s.i >= len(s.events) {
-		return models.Event{}, io.EOF
+func (s *scriptedCaller) Generate(_ context.Context, req *luxsdk.Request) (*luxsdk.Result, error) {
+	s.got = req
+	time.Sleep(s.delay)
+	if s.err != nil {
+		return nil, s.err
 	}
-	ev := s.events[s.i]
-	s.i++
-	return ev, nil
+	return &luxsdk.Result{Response: s.resp}, nil
 }
 
-func (s *scriptStream) Close() error { return nil }
+// Stream is never called: a critic round is one non-streaming call.
+func (s *scriptedCaller) Stream(context.Context, *luxsdk.Request) (*luxsdk.Stream, error) {
+	return nil, errors.New("scriptedCaller: Stream is not part of a critic round")
+}
 
-// blockingModel never emits; it blocks until the request context is cancelled,
-// then surfaces ctx.Err(). It lets a test observe whether Round's per-round
-// deadline actually bounds the model call.
-type blockingModel struct{}
+func textResponse(text string) luxsdk.Response {
+	return luxsdk.Response{Blocks: []luxsdk.Block{{Type: luxsdk.BlockText, Text: text}}}
+}
 
-func (blockingModel) Stream(ctx context.Context, _ models.Request) (models.Stream, error) {
+// blockingCaller never answers; it blocks until the request context is
+// cancelled, then surfaces ctx.Err(). It lets a test observe whether Round's
+// per-round deadline actually bounds the model call.
+type blockingCaller struct{}
+
+func (blockingCaller) Generate(ctx context.Context, _ *luxsdk.Request) (*luxsdk.Result, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (blockingCaller) Stream(ctx context.Context, _ *luxsdk.Request) (*luxsdk.Stream, error) {
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
@@ -84,14 +91,15 @@ func securityInput() agon.CriticInput {
 	}
 }
 
-// TestRoundReturnsModelTextVerbatim is the backend-swap contract: the topos
-// critic returns the model's text unchanged as CriticResult.Markdown, and that
+// TestRoundReturnsModelTextVerbatim is the backend-swap contract: the critic
+// returns the model's text unchanged as CriticResult.Markdown, and that
 // markdown parses into the same Record set (critic.Parse) as the claude/codex
 // critics on identical input. securityInput() leaves Deadline at its zero value,
 // so this is also the no-cap side of the `if in.Deadline > 0` guard that
 // TestRoundHonorsDeadline covers from the other side.
 func TestRoundReturnsModelTextVerbatim(t *testing.T) {
-	res := runOnce(t, nativecritic.Config{Model: xtopos.ModelOptions{Client: scriptedModel{text: cannedR1}}}, securityInput())
+	model := &scriptedCaller{resp: textResponse(cannedR1)}
+	res := runOnce(t, nativecritic.Config{Model: model, Name: modelName}, securityInput())
 
 	if res.Markdown != cannedR1 {
 		t.Fatalf("markdown not verbatim:\n got %q\nwant %q", res.Markdown, cannedR1)
@@ -108,19 +116,76 @@ func TestRoundReturnsModelTextVerbatim(t *testing.T) {
 	}
 }
 
-// TestRoundHonorsDeadline pins the per-round budget added in 40e093f:
-// CriticInput.Deadline is a time.Duration (a budget from the moment Round is
-// called), so Round applies it via context.WithTimeout and a model that never
-// returns is cancelled rather than running unbounded. A tiny positive deadline
-// must surface context.DeadlineExceeded promptly. This also nails the semantics
-// a critic doubted: Deadline is a duration, not an absolute timestamp, so no
-// time.Unix/time.Until conversion is involved.
+// TestRoundJoinsTextBlocksOnly pins that the attack document is the text the
+// model wrote: text blocks are joined in order, and a reasoning block, which
+// is the model's working rather than its answer, is left out.
+func TestRoundJoinsTextBlocksOnly(t *testing.T) {
+	head, tail := cannedR1[:20], cannedR1[20:]
+	model := &scriptedCaller{resp: luxsdk.Response{Blocks: []luxsdk.Block{
+		{Type: luxsdk.BlockThinking, Text: "first I read the handler"},
+		{Type: luxsdk.BlockText, Text: head},
+		{Type: luxsdk.BlockText, Text: tail},
+	}}}
+	res := runOnce(t, nativecritic.Config{Model: model, Name: modelName}, securityInput())
+	if res.Markdown != cannedR1 {
+		t.Fatalf("markdown:\n got %q\nwant %q", res.Markdown, cannedR1)
+	}
+}
+
+// TestRoundSendsOneToolFreeTurn pins the request a round makes: the configured
+// model, the assembled prompt as the single user turn, no tools, and a bounded
+// output.
+func TestRoundSendsOneToolFreeTurn(t *testing.T) {
+	in := securityInput()
+	model := &scriptedCaller{resp: textResponse(cannedR1)}
+	runOnce(t, nativecritic.Config{Model: model, Name: modelName}, in)
+
+	req := model.got
+	if req == nil {
+		t.Fatal("no request sent")
+	}
+	if req.Model != modelName {
+		t.Errorf("model: got %q, want %q", req.Model, modelName)
+	}
+	if len(req.Tools) != 0 || len(req.ServerTools) != 0 {
+		t.Errorf("critic was offered tools: %+v %+v", req.Tools, req.ServerTools)
+	}
+	if req.MaxTokens == nil || *req.MaxTokens <= 0 {
+		t.Errorf("output is unbounded: %v", req.MaxTokens)
+	}
+	if len(req.Messages) != 1 || req.Messages[0].Role != luxsdk.RoleUser {
+		t.Fatalf("messages: got %+v, want one user turn", req.Messages)
+	}
+	blocks := req.Messages[0].Blocks
+	if len(blocks) != 1 || blocks[0].Text != agon.AssemblePrompt(in) {
+		t.Errorf("user turn is not the assembled prompt: %+v", blocks)
+	}
+}
+
+// TestRoundModelOverride pins that a round naming its own model wins over the
+// configured default.
+func TestRoundModelOverride(t *testing.T) {
+	const override = "stronger-model"
+	in := securityInput()
+	in.Model = override
+	model := &scriptedCaller{resp: textResponse(cannedR1)}
+	runOnce(t, nativecritic.Config{Model: model, Name: modelName}, in)
+	if model.got.Model != override {
+		t.Errorf("model: got %q, want %q", model.got.Model, override)
+	}
+}
+
+// TestRoundHonorsDeadline pins the per-round budget: CriticInput.Deadline is a
+// time.Duration (a budget from the moment Round is called), so Round applies
+// it via context.WithTimeout and a model that never returns is cancelled
+// rather than running unbounded. A tiny positive deadline must surface
+// context.DeadlineExceeded promptly.
 func TestRoundHonorsDeadline(t *testing.T) {
 	in := securityInput()
 	in.Deadline = 20 * time.Millisecond
 
 	start := time.Now()
-	_, err := nativecritic.NewCriticFactory(nativecritic.Config{Model: xtopos.ModelOptions{Client: blockingModel{}}})(1).
+	_, err := nativecritic.NewCriticFactory(nativecritic.Config{Model: blockingCaller{}, Name: modelName})(1).
 		Round(context.Background(), in)
 	elapsed := time.Since(start)
 
@@ -135,50 +200,75 @@ func TestRoundHonorsDeadline(t *testing.T) {
 	}
 }
 
-// TestRoundReportsNoUsage pins a known limitation: topos's public RunResult
-// exposes no token usage, so the topos critic reports zero. A future topos-side
-// fix flips this test deliberately.
-func TestRoundReportsNoUsage(t *testing.T) {
-	res := runOnce(t, nativecritic.Config{Model: xtopos.ModelOptions{Client: scriptedModel{text: cannedR1}}}, securityInput())
-	if res.Usage.Total() != 0 || res.Tokens != 0 || res.USD != 0 {
-		t.Errorf("expected zero usage, got usage=%+v tokens=%d usd=%v", res.Usage, res.Tokens, res.USD)
+// TestRoundReportsUsage pins that a round carries the model's token counts
+// and reported cost, so a critic backed by a model call counts against the
+// engine's cost cap. Tokens is input plus output, as the subprocess critics
+// count it, and Duration covers the call.
+func TestRoundReportsUsage(t *testing.T) {
+	const callTime = 5 * time.Millisecond
+	cacheRead, cacheWrite, cost := int64(30), int64(10), int64(2500)
+	resp := textResponse(cannedR1)
+	resp.Usage = luxsdk.Usage{
+		InputTokens:           120,
+		OutputTokens:          45,
+		CacheReadInputTokens:  &cacheRead,
+		CacheWriteInputTokens: &cacheWrite,
+		CostUSDMicro:          &cost,
+	}
+	model := &scriptedCaller{resp: resp, delay: callTime}
+	res := runOnce(t, nativecritic.Config{Model: model, Name: modelName}, securityInput())
+
+	want := agon.TokenUsage{Input: 120, Output: 45, CacheRead: 30, CacheCreate: 10}
+	if res.Usage != want {
+		t.Errorf("usage: got %+v, want %+v", res.Usage, want)
+	}
+	if res.Tokens != want.Input+want.Output {
+		t.Errorf("tokens: got %d, want %d", res.Tokens, want.Input+want.Output)
+	}
+	if res.USD != 0.0025 {
+		t.Errorf("usd: got %v, want 0.0025", res.USD)
+	}
+	if res.Duration < callTime {
+		t.Errorf("duration: got %v, want at least the call's %v", res.Duration, callTime)
 	}
 }
 
-// An explicit empty declaration produces no registry grants; a concrete bash
-// declaration appears in the trace. Critic defaults are tested through Round.
-func TestToposTraceRecordsConcreteTools(t *testing.T) {
-	grants := func(tools []string) []string {
-		runner, err := xtopos.NewRunner(xtopos.Options{SessionID: "t", Model: xtopos.ModelOptions{Client: scriptedModel{text: "ok"}}})
-		if err != nil {
-			t.Fatalf("NewRunner: %v", err)
-		}
-		region := xtopos.Region{
-			Autonomy: xtopos.Pinned,
-			Entry:    xtopos.AgentSpec{Name: "critic-1", Role: "critic", Tools: tools},
-		}
-		res, err := runner.Run(context.Background(), region, "prompt")
-		if err != nil {
-			t.Fatalf("Run: %v", err)
-		}
-		if len(res.Trace.Nodes) == 0 {
-			t.Fatal("no trace nodes")
-		}
-		return res.Trace.Nodes[0].Grants
+// TestRoundUnreportedUsageIsZero pins the provider-direct case: no cache
+// figures and no cost reported read as zero rather than failing the round.
+func TestRoundUnreportedUsageIsZero(t *testing.T) {
+	resp := textResponse(cannedR1)
+	resp.Usage = luxsdk.Usage{InputTokens: 7, OutputTokens: 3}
+	res := runOnce(t, nativecritic.Config{Model: &scriptedCaller{resp: resp}, Name: modelName}, securityInput())
+	if res.Usage.CacheRead != 0 || res.Usage.CacheCreate != 0 || res.USD != 0 {
+		t.Errorf("unreported figures not zero: usage=%+v usd=%v", res.Usage, res.USD)
+	}
+	if res.Tokens != 10 {
+		t.Errorf("tokens: got %d, want 10", res.Tokens)
+	}
+}
+
+// TestRoundErrors pins the failures a round reports instead of calling a
+// model: no connection, no model name, and the call's own error, which stays
+// in the chain.
+func TestRoundErrors(t *testing.T) {
+	if _, err := nativecritic.NewCriticFactory(nativecritic.Config{Name: modelName})(1).
+		Round(context.Background(), securityInput()); err == nil {
+		t.Error("nil Model: expected an error")
 	}
 
-	for _, g := range grants([]string{}) {
-		t.Errorf("read-only critic was granted a tool: %q", g)
+	unnamed := &scriptedCaller{resp: textResponse(cannedR1)}
+	if _, err := nativecritic.NewCriticFactory(nativecritic.Config{Model: unnamed})(1).
+		Round(context.Background(), securityInput()); err == nil {
+		t.Error("no model name: expected an error")
 	}
-	// Control: an explicit bash grant does show up, proving the assertion above
-	// is meaningful rather than vacuous.
-	var sawBash bool
-	for _, g := range grants([]string{"bash"}) {
-		if g == "bash" {
-			sawBash = true
-		}
+	if unnamed.got != nil {
+		t.Error("no model name: a request was sent anyway")
 	}
-	if !sawBash {
-		t.Error("control: expected bash in grants when explicitly granted")
+
+	cause := errors.New("gateway unavailable")
+	_, err := nativecritic.NewCriticFactory(nativecritic.Config{Model: &scriptedCaller{err: cause}, Name: modelName})(1).
+		Round(context.Background(), securityInput())
+	if !errors.Is(err, cause) {
+		t.Errorf("call error: got %v, want %v in the chain", err, cause)
 	}
 }
