@@ -1,0 +1,25 @@
+name: verify
+
+# Every Go gate this module has runs through latere-ai/ci's reusable
+# pipeline, which asks the pinned lateregate which gates apply and runs one
+# job per gate. The checks live in latere.ai/x/ci-gate, pinned in go.mod, so
+# each runs identically from a laptop with `go tool lateregate`.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push to the same ref supersedes this run: its commit carries every
+# change this one would verify, and the runner is better spent on it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    uses: latere-ai/ci/.github/workflows/lateregate.yml@v1

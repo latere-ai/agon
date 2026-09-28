@@ -1,0 +1,15 @@
+# Test binaries and coverage profiles.
+*.test
+*.out
+*.coverprofile
+
+# Go workspace files are a developer's local wiring, never the module's.
+go.work
+go.work.sum
+
+# Rendered by lateregate from latere.ai/x/ci-gate on every lint run; never
+# committed.
+.golangci.yml
+
+# Written by lateregate on every run; never committed.
+coverage.out

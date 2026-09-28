@@ -1,0 +1,41 @@
+# The per-push gate configuration for agon. Every check runs from
+# latere.ai/x/ci-gate, pinned in go.mod, so a gate that fails on a runner
+# fails the same way on a laptop. Only the values specific to this module
+# are here.
+
+cover:
+  exempt:
+    # The value is the reason. lateregate rejects an empty one.
+    claude: >-
+      drives the real claude binary; the covered paths are the ones a test can
+      reach without it
+
+hermetic:
+  # Two directories, for binaries the suite really executes. /usr/bin has
+  # git, which input shells out to for the diff it reviews; /bin has sh,
+  # which the fake CLI harnesses of claude and internal/agent run through.
+  # With allow: [] those packages fail rather than skip, so both entries are
+  # measured rather than assumed.
+  allow: [/usr/bin, /bin]
+
+license:
+  # The identifier every source file carries and the holder it names. There
+  # is no default: this is the decision the gate checks the tree against.
+  # `go tool lateregate license -w` writes the notice where it is missing.
+  spdx: Apache-2.0
+  holder: Latere AI
+
+# Gates this repository does not run yet. Each entry is temporary by
+# construction: after the date the gate runs and fails on its own terms.
+waive:
+  cover:
+    reason: >-
+      the root package (87.8%), internal/agent (87.8%) and internal/state
+      (89.9%) sit just under the floor, as they did inside topos; closing that
+      is test work in the round loop rather than a threshold to choose
+    until: 2026-10-31
+
+# The identity shape of the family: a library, which verifies no token and
+# serves no request.
+identity:
+  role: none

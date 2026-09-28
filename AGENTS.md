@@ -1,0 +1,11 @@
+- Respond short, precise, and concise.
+- If you didn't add a test, you didn't fix a bug. Every bug fix must include a reproducible test that fails without the fix and passes with it.
+- Commit frequently, one small scope diff at a time. Push to main once a full batch of work is complete and verified.
+- Leftovers are cleaned up in follow-up commits.
+- `go tool lateregate` runs the whole bar, the same one CI runs; every package clears a 90% coverage floor unless `.lateregate.yaml` exempts it with a reason.
+- The engine core imports no model client and no agent runtime. Only `critic` calls a model, and nothing depends on `latere.ai/x/topos`; `critic/boundary_test.go` holds both.
+- Write in audience language: documents aim at user value and usage, the API surface aims at builder precision, code comments aim at technical precision.
+- This repository is public. No Latere hostname, token, or internal reference anywhere but as a default or an example.
+- Relevant latere projects and shared components (latere.ai/x/pkg/*) are in ../
+- Every sentence is written for one reader (user, contributor, developer) and the register follows the reader; an error has one code, one fixed user sentence in `message`, and one developer detail in a separate field. The rule and the review checklist: https://github.com/latere-ai/pkg/blob/main/docs/writing/registers.md
+- A tag is a release, and a release has notes: write them under `## Unreleased` in CHANGELOG.md with the change, and cut with `go tool lateregate release vX.Y.Z`.
