@@ -25,6 +25,9 @@ that it sorts above them and `@latest` resolves to it.
 
 ### Changed
 
+- `latere.ai/x/pkg` v0.90.2 and OpenTelemetry Go v1.46.0, past GO-2026-6615 and
+  GO-2026-6505.
+
 - Import paths move from `latere.ai/x/topos/adversarial/...` to
   `latere.ai/x/agon/...`. The root package is named `agon`: code that
   referred to `adversarial.Review` either imports the package under that
