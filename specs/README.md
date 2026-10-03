@@ -5,7 +5,7 @@ module `latere.ai/x/agon`. After a coding agent produces a change, it forks the
 session, runs one or more independent critics that attack the diff, lets the
 proposer defend or concede, and surfaces only the disputes that survive. It is
 imported as a library, not run as a standalone tool: the developer CLI is
-`latere review` in [latere-cli](https://github.com/latere-ai/latere-cli), and
+`latere agents review` in [latere-cli](https://github.com/latere-ai/latere-cli), and
 the same engine is embedded by wallfacer.
 
 These specs are the current-state contracts for the engine and its protocol. They
@@ -123,4 +123,4 @@ Beyond the proposer-versus-critic asymmetry, two protocol shapes are candidates
 
 - **Hosted Verifier service.** The [`Verifier` interface](024-engine-api.md) is the
   seam for a hosted adversarial-review service beyond the local CLI track. Named,
-  not built; the local track (`latere review`) is done.
+  not built; the local track (`latere agents review`) is done.
