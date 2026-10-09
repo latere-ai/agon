@@ -44,3 +44,7 @@ that it sorts above them and `@latest` resolves to it.
 
 - `critic.Config.Sandbox` and `critic.Config.Tools`: a critic runs no agent,
   so it has no sandbox and is granted no tools.
+
+### Security
+
+- Built with Go 1.27.2 and golang.org/x/net v0.60.0, which fix GO-2026-6611, GO-2026-6612, GO-2026-6613 and GO-2026-6617.
