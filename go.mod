@@ -6,7 +6,7 @@ toolchain go1.27.2
 
 require (
 	latere.ai/x/pkg v0.90.2
-	latere.ai/x/sdk-go v0.0.0-00010101000000-000000000000
+	latere.ai/x/sdk-go v0.0.0-20261020132337-a96fb9a47778
 )
 
 require (
@@ -19,7 +19,3 @@ require (
 )
 
 tool latere.ai/x/ci-gate/cmd/lateregate
-
-// The SDK's llm package is unreleased; this points at its working tree until
-// it is tagged.
-replace latere.ai/x/sdk-go => ../sdk-llm
