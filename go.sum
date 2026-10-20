@@ -14,3 +14,5 @@ latere.ai/x/pkg v0.90.2 h1:W3QFzuf9ujTdmD4zIbeitO3tcP1dDXPZ09etVlEM5pc=
 latere.ai/x/pkg v0.90.2/go.mod h1:3E3SkHqudqH1mka1Rt7N8aExh+EJvvDqtNYKb25Ond4=
 latere.ai/x/sdk-go v0.0.0-20261020132337-a96fb9a47778 h1:1FHkoa2irOcyT0Atd08nG5BAU1jGlEtnKl234bFBE78=
 latere.ai/x/sdk-go v0.0.0-20261020132337-a96fb9a47778/go.mod h1:F6605Qld46Dzv7Ux76JW0zqZoq/oPtzDHt0fL6wVn/w=
+latere.ai/x/sdk-go v0.1.0 h1:I0+KgpGuDSKaVfJEc4M9Jx/FhA7hGywO7aJjZcGrykI=
+latere.ai/x/sdk-go v0.1.0/go.mod h1:F6605Qld46Dzv7Ux76JW0zqZoq/oPtzDHt0fL6wVn/w=

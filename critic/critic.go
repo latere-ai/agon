@@ -113,7 +113,7 @@ func (c *critic) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticRe
 		// buckets stay in Usage.
 		Tokens:   usage.Input + usage.Output,
 		Usage:    usage,
-		USD:      usd(res.Usage.CostUSDMicro),
+		USD:      usd(res.Usage.CostMicroUSD),
 		Duration: duration,
 	}, nil
 }

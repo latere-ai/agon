@@ -207,7 +207,7 @@ func TestRoundReportsUsage(t *testing.T) {
 		OutputTokens:          45,
 		CacheReadInputTokens:  &cacheRead,
 		CacheWriteInputTokens: &cacheWrite,
-		CostUSDMicro:          &cost,
+		CostMicroUSD:          &cost,
 	}
 	model := &scriptedCaller{resp: resp, delay: callTime}
 	res := runOnce(t, nativecritic.Config{Model: model, Name: modelName}, securityInput())

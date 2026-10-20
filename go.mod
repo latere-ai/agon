@@ -6,7 +6,7 @@ toolchain go1.27.2
 
 require (
 	latere.ai/x/pkg v0.90.2
-	latere.ai/x/sdk-go v0.0.0-20261020132337-a96fb9a47778
+	latere.ai/x/sdk-go v0.1.0
 )
 
 require (
