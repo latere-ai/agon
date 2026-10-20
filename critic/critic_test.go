@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"latere.ai/x/pkg/luxsdk"
+	"latere.ai/x/sdk-go/llm"
 
 	"latere.ai/x/agon"
 	nativecritic "latere.ai/x/agon/critic"
@@ -29,45 +29,38 @@ const cannedR1 = "# Critic 1 - round 1 attacks\n\n" +
 // modelName is the model id the tests configure.
 const modelName = "critic-model"
 
-// scriptedCaller is a luxsdk.Caller that records the request it was sent and
+// scriptedCaller is a Generator that records the request it was sent and
 // answers from a fixed response, so a critic round is deterministic and
 // network-free.
 type scriptedCaller struct {
-	resp  luxsdk.Response
+	resp  llm.Response
 	err   error
 	delay time.Duration // how long the call takes before it answers
-	got   *luxsdk.Request
+	got   *llm.Request
 }
 
-func (s *scriptedCaller) Generate(_ context.Context, req *luxsdk.Request) (*luxsdk.Result, error) {
+func (s *scriptedCaller) Generate(_ context.Context, req *llm.Request) (*llm.Result, error) {
 	s.got = req
 	time.Sleep(s.delay)
 	if s.err != nil {
 		return nil, s.err
 	}
-	return &luxsdk.Result{Response: s.resp}, nil
+	return &llm.Result{Response: s.resp}, nil
 }
 
-// Stream is never called: a critic round is one non-streaming call.
-func (s *scriptedCaller) Stream(context.Context, *luxsdk.Request) (*luxsdk.Stream, error) {
-	return nil, errors.New("scriptedCaller: Stream is not part of a critic round")
+func textResponse(text string) llm.Response {
+	return llm.Response{Blocks: []llm.Block{{Type: llm.BlockText, Text: text}}}
 }
 
-func textResponse(text string) luxsdk.Response {
-	return luxsdk.Response{Blocks: []luxsdk.Block{{Type: luxsdk.BlockText, Text: text}}}
-}
+// The Latere models client is a Generator.
+var _ nativecritic.Generator = (*llm.Client)(nil)
 
 // blockingCaller never answers; it blocks until the request context is
 // canceled, then surfaces ctx.Err(). It lets a test observe whether Round's
 // per-round deadline actually bounds the model call.
 type blockingCaller struct{}
 
-func (blockingCaller) Generate(ctx context.Context, _ *luxsdk.Request) (*luxsdk.Result, error) {
-	<-ctx.Done()
-	return nil, ctx.Err()
-}
-
-func (blockingCaller) Stream(ctx context.Context, _ *luxsdk.Request) (*luxsdk.Stream, error) {
+func (blockingCaller) Generate(ctx context.Context, _ *llm.Request) (*llm.Result, error) {
 	<-ctx.Done()
 	return nil, ctx.Err()
 }
@@ -122,10 +115,10 @@ func TestRoundReturnsModelTextVerbatim(t *testing.T) {
 // is the model's working rather than its answer, is left out.
 func TestRoundJoinsTextBlocksOnly(t *testing.T) {
 	head, tail := cannedR1[:20], cannedR1[20:]
-	model := &scriptedCaller{resp: luxsdk.Response{Blocks: []luxsdk.Block{
-		{Type: luxsdk.BlockThinking, Text: "first I read the handler"},
-		{Type: luxsdk.BlockText, Text: head},
-		{Type: luxsdk.BlockText, Text: tail},
+	model := &scriptedCaller{resp: llm.Response{Blocks: []llm.Block{
+		{Type: llm.BlockThinking, Text: "first I read the handler"},
+		{Type: llm.BlockText, Text: head},
+		{Type: llm.BlockText, Text: tail},
 	}}}
 	res := runOnce(t, nativecritic.Config{Model: model, Name: modelName}, securityInput())
 	if res.Markdown != cannedR1 {
@@ -154,7 +147,7 @@ func TestRoundSendsOneToolFreeTurn(t *testing.T) {
 	if req.MaxTokens == nil || *req.MaxTokens <= 0 {
 		t.Errorf("output is unbounded: %v", req.MaxTokens)
 	}
-	if len(req.Messages) != 1 || req.Messages[0].Role != luxsdk.RoleUser {
+	if len(req.Messages) != 1 || req.Messages[0].Role != llm.RoleUser {
 		t.Fatalf("messages: got %+v, want one user turn", req.Messages)
 	}
 	blocks := req.Messages[0].Blocks
@@ -209,7 +202,7 @@ func TestRoundReportsUsage(t *testing.T) {
 	const callTime = 5 * time.Millisecond
 	cacheRead, cacheWrite, cost := int64(30), int64(10), int64(2500)
 	resp := textResponse(cannedR1)
-	resp.Usage = luxsdk.Usage{
+	resp.Usage = llm.Usage{
 		InputTokens:           120,
 		OutputTokens:          45,
 		CacheReadInputTokens:  &cacheRead,
@@ -238,7 +231,7 @@ func TestRoundReportsUsage(t *testing.T) {
 // figures and no cost reported read as zero rather than failing the round.
 func TestRoundUnreportedUsageIsZero(t *testing.T) {
 	resp := textResponse(cannedR1)
-	resp.Usage = luxsdk.Usage{InputTokens: 7, OutputTokens: 3}
+	resp.Usage = llm.Usage{InputTokens: 7, OutputTokens: 3}
 	res := runOnce(t, nativecritic.Config{Model: &scriptedCaller{resp: resp}, Name: modelName}, securityInput())
 	if res.Usage.CacheRead != 0 || res.Usage.CacheCreate != 0 || res.USD != 0 {
 		t.Errorf("unreported figures not zero: usage=%+v usd=%v", res.Usage, res.USD)

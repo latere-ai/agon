@@ -15,7 +15,7 @@ const (
 	// depend on it, so a consumer on any version of it can import this module.
 	runtimeModule = "latere.ai/x/topos"
 	// modelSeam is the model client. Only the critic package calls a model.
-	modelSeam = "latere.ai/x/pkg/luxsdk"
+	modelSeam = "latere.ai/x/sdk-go/llm"
 )
 
 // modulePath reads this module's path from `go list -m`, so the tests follow

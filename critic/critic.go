@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package critic provides an [agon.Critic] that makes one model call per
-// round through a [luxsdk.Caller].
+// round through a [Generator].
 //
-// The caller is either the Lux gateway client ([luxsdk.New]) or a
-// provider-direct caller ([luxsdk.NewDirect]); the critic sees only the call
-// surface both satisfy. Each round sends the assembled critic prompt, which
+// The generator is either the Latere models client ([llm.New]) or a
+// provider-direct client (latere.ai/x/pkg/llmdirect); the critic sees only
+// the one method both have. Each round sends the assembled critic prompt, which
 // already contains the diff, as one user turn with no tools, and returns the
 // model's text verbatim as [agon.CriticResult.Markdown]; the engine parses it
 // like any other backend's. The response's usage fills the result's token
@@ -26,16 +26,22 @@ import (
 	"strings"
 	"time"
 
-	"latere.ai/x/pkg/luxsdk"
+	"latere.ai/x/sdk-go/llm"
 
 	"latere.ai/x/agon"
 )
 
+// Generator makes one model call and waits for the whole answer. An
+// [*llm.Client] is one, for Latere's models, and so is an *llmdirect.Client
+// from latere.ai/x/pkg/llmdirect, for a provider called directly.
+type Generator interface {
+	Generate(ctx context.Context, req *llm.Request) (*llm.Result, error)
+}
+
 // Config wires a critic to a model.
 type Config struct {
-	// Model is the model connection: a [luxsdk.Client] for the gateway or a
-	// [luxsdk.Direct] for a provider. Required.
-	Model luxsdk.Caller
+	// Model is the model connection. Required.
+	Model Generator
 	// Name is the model id each request names. A round's
 	// [agon.CriticInput.Model] overrides it when set.
 	Name string
@@ -86,9 +92,9 @@ func (c *critic) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticRe
 	}
 	maxTokens := maxOutputTokens
 	start := time.Now()
-	res, err := c.cfg.Model.Generate(ctx, &luxsdk.Request{
+	res, err := c.cfg.Model.Generate(ctx, &llm.Request{
 		Model:     model,
-		Messages:  []luxsdk.Message{luxsdk.UserText(agon.AssemblePrompt(in))},
+		Messages:  []llm.Message{llm.UserText(agon.AssemblePrompt(in))},
 		MaxTokens: &maxTokens,
 	})
 	if err != nil {
@@ -114,10 +120,10 @@ func (c *critic) Round(ctx context.Context, in agon.CriticInput) (*agon.CriticRe
 
 // text joins the response's text blocks, skipping reasoning and any other
 // block kind, which are not part of the attack document.
-func text(blocks []luxsdk.Block) string {
+func text(blocks []llm.Block) string {
 	var b strings.Builder
 	for _, blk := range blocks {
-		if blk.Type == luxsdk.BlockText {
+		if blk.Type == llm.BlockText {
 			b.WriteString(blk.Text)
 		}
 	}
