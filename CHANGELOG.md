@@ -25,20 +25,24 @@ that it sorts above them and `@latest` resolves to it.
 
 ### Changed
 
-- `latere.ai/x/pkg` v0.90.2 and OpenTelemetry Go v1.46.0, past GO-2026-6615 and
-  GO-2026-6505.
+- `latere.ai/x/pkg` v0.90.2, past GO-2026-6615 and GO-2026-6505. The module
+  graph holds no OpenTelemetry or gRPC: the critic's model client is the
+  Latere Go SDK's `llm` package, which imports the standard library alone.
 
 - Import paths move from `latere.ai/x/topos/adversarial/...` to
   `latere.ai/x/agon/...`. The root package is named `agon`: code that
   referred to `adversarial.Review` either imports the package under that
   name or refers to `agon.Review`. Every exported identifier of the root,
   `claude` and `input` is unchanged.
-- `critic.Config` takes a `luxsdk.Caller` (`Model`) and a model id (`Name`)
-  in place of topos `ModelOptions`, `Sandbox` and `Tools`. A critic round
-  is one tool-free model call rather than an agent run, so it behaves as
-  before, and it now reports the call's token usage, duration and, when the
-  gateway reports one, its cost. Its tokens count against `CostCap` like
-  the subprocess critics'.
+- `critic.Config` takes a `critic.Generator` (`Model`) and a model id
+  (`Name`) in place of topos `ModelOptions`, `Sandbox` and `Tools`. A
+  `Generator` is any type with the `Generate` method of the Latere Go SDK's
+  models client, `*llm.Client` from `latere.ai/x/sdk-go/llm`; a
+  provider-direct `*llmdirect.Client` from `latere.ai/x/pkg/llmdirect` is
+  one too. A critic round is one tool-free model call rather than an agent
+  run, so it behaves as before, and it now reports the call's token usage,
+  duration and, when the gateway reports one, its cost. Its tokens count
+  against `CostCap` like the subprocess critics'.
 
 ### Removed
 

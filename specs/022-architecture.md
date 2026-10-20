@@ -2,7 +2,7 @@
 title: Architecture
 status: complete
 track: adversarial
-updated: 2026-09-28
+updated: 2026-10-20
 author: changkun
 ---
 
@@ -66,7 +66,7 @@ The protocol itself is [Debate protocol](026-protocol.md).
 
 `agon` re-exports the engine over the `internal/*` packages; its
 types carry no `internal/` dependency so out-of-module callers can satisfy the
-interfaces. Only `critic` imports a model client (`latere.ai/x/pkg/luxsdk`), and
+interfaces. Only `critic` imports a model client (`latere.ai/x/sdk-go/llm`), and
 no package depends on an agent runtime, both enforced by a boundary test, so the
 model-call critic stays an opt-in backend and the core stays runtime-agnostic.
 

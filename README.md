@@ -33,7 +33,7 @@ location.
 |---|---|
 | `latere.ai/x/agon` | The engine: `Review`, `Engine`, the `Proposer` and `Critic` interfaces, `Summary` |
 | `latere.ai/x/agon/claude` | A proposer that forks a Claude Code session (`claude --resume --fork-session`) and a critic that runs `claude -p` |
-| `latere.ai/x/agon/critic` | A critic that makes one model call per round through a `luxsdk.Caller` |
+| `latere.ai/x/agon/critic` | A critic that makes one model call per round through a `critic.Generator` |
 | `latere.ai/x/agon/input` | The working-tree diff (`input.Compute`) and Claude Code transcript lookup |
 
 The engine core depends on no model client and no agent runtime. A caller
@@ -43,18 +43,26 @@ backends, and any type satisfying the interfaces works.
 ## Wiring a critic
 
 `critic.Config` takes a model connection and a model name. The connection is
-any `luxsdk.Caller`: the Lux gateway client, or a provider-direct caller.
+any `critic.Generator`, a type with the `Generate` method of the Latere Go
+SDK's models client: that client
+([`latere.ai/x/sdk-go/llm`](https://pkg.go.dev/latere.ai/x/sdk-go/llm)), a
+provider-direct client
+([`latere.ai/x/pkg/llmdirect`](https://pkg.go.dev/latere.ai/x/pkg/llmdirect),
+in pkg releases after v0.103.0), or your own.
 
 ```go
-// Through the Lux gateway, with LUX_BASE_URL and LUX_API_KEY from the
-// environment.
+// Through Latere's models, with the key in LATERE_KEY.
+cfg, err := latere.NewConfig()
+if err != nil {
+	return err
+}
 critics := critic.NewCriticFactory(critic.Config{
-	Model: luxsdk.New(""),
+	Model: llm.New(cfg),
 	Name:  "claude-sonnet-5",
 })
 
-// Straight to a provider.
-direct, err := luxsdk.NewDirect(luxsdk.ProviderAnthropic, apiKey, "")
+// Straight to a provider, with your own key.
+direct, err := llmdirect.New(llmdirect.ProviderAnthropic, apiKey, "")
 if err != nil {
 	return err
 }
@@ -82,7 +90,8 @@ import (
 	"latere.ai/x/agon/claude"
 	"latere.ai/x/agon/critic"
 	"latere.ai/x/agon/input"
-	"latere.ai/x/pkg/luxsdk"
+	"latere.ai/x/sdk-go/latere"
+	"latere.ai/x/sdk-go/llm"
 )
 
 func main() {
@@ -93,12 +102,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	cfg, err := latere.NewConfig() // the key in LATERE_KEY
+	if err != nil {
+		log.Fatal(err)
+	}
 	sum, err := agon.Review(ctx, agon.ReviewOptions{
 		StateDir:    "/path/to/state",
 		Cwd:         cwd,
 		Forks:       2,
 		Proposer:    claude.NewProposer(sessionID, cwd),
-		NewCritic:   critic.NewCriticFactory(critic.Config{Model: luxsdk.New(""), Name: "claude-sonnet-5"}),
+		NewCritic:   critic.NewCriticFactory(critic.Config{Model: llm.New(cfg), Name: "claude-sonnet-5"}),
 		TaskContext: "add rate limiting to the search handler",
 		DiffPatch:   diff.Patch,
 	})

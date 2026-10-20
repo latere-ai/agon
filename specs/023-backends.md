@@ -2,7 +2,7 @@
 title: Backends
 status: complete
 track: adversarial
-updated: 2026-09-28
+updated: 2026-10-20
 author: changkun
 ---
 
@@ -51,8 +51,9 @@ of a local subprocess. This is for embedders that reach models through the Lux
 gateway or a provider API rather than a local CLI: through the gateway, secrets
 stay in the gateway and billing is centralized.
 
-`Config` carries `Model`, a `luxsdk.Caller` (the gateway's `luxsdk.Client` or a
-provider-direct `luxsdk.Direct`; tests supply a scripted caller), and `Name`, the
+`Config` carries `Model`, a `critic.Generator` (the SDK's `*llm.Client` from
+`latere.ai/x/sdk-go/llm` or a provider-direct `*llmdirect.Client` from
+`latere.ai/x/pkg/llmdirect`; tests supply a scripted one), and `Name`, the
 model id each request names; a round's `CriticInput.Model` overrides it. Each
 round sends `AssemblePrompt(in)` as one user turn with no tools, so the critic
 reasons over the diff embedded in the prompt, under a fixed output cap. The text
@@ -66,7 +67,7 @@ therefore counts against the engine's cost cap like the subprocess critics.
 
 ## The boundary
 
-Only `critic` may import the model client (`latere.ai/x/pkg/luxsdk`), and no
+Only `critic` may import the model client (`latere.ai/x/sdk-go/llm`), and no
 package of the module may depend on an agent runtime (`latere.ai/x/topos`),
 both enforced by `critic/boundary_test.go`. The engine core and every other
 backend stay free of a model client, so the model-call critic is an opt-in
