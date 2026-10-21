@@ -15,6 +15,8 @@ that it sorts above them and `@latest` resolves to it.
 
 ## Unreleased
 
+## v0.3.0 - 2026-10-21
+
 ### Added
 
 - The adversarial review engine as its own module, `latere.ai/x/agon`,
