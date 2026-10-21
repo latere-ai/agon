@@ -22,4 +22,4 @@ permissions:
 
 jobs:
   gate:
-    uses: latere-ai/ci/.github/workflows/lateregate.yml@v1
+    uses: latere-ai/ci/.github/workflows/lateregate.yml@69fd748a002347571d095e1a975ebf2556a23d1e
