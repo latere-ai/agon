@@ -15,6 +15,11 @@ that it sorts above them and `@latest` resolves to it.
 
 ## Unreleased
 
+### Fixed
+
+- **Built with Go 1.27.3,** which fixes GO-2026-6809, a flaw in the
+  standard library's certificate verification.
+
 ## v0.3.0 - 2026-10-21
 
 ### Added
