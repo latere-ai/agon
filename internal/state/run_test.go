@@ -117,3 +117,17 @@ func TestWriteRunDiff(t *testing.T) {
 		t.Errorf("got %q", b)
 	}
 }
+
+func TestWriteEnd_UnencodableExtras(t *testing.T) {
+	sess, err := NewSession(t.TempDir(), 1, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	end := &EndFile{SessionID: sess.ID, Extras: map[string]any{"bad": func() {}}}
+	if err := WriteEnd(sess, end); err == nil {
+		t.Error("WriteEnd with a func in Extras: want an encoding error")
+	}
+	if _, err := os.Stat(sess.Path("end.json")); !os.IsNotExist(err) {
+		t.Errorf("end.json written despite the encoding error: stat err = %v", err)
+	}
+}

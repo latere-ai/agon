@@ -185,3 +185,43 @@ func TestWriteForkStats(t *testing.T) {
 		t.Errorf("stats body missing token field: %s", b)
 	}
 }
+
+func TestNewSession_StateDirIsAFile(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "state")
+	if err := os.WriteFile(file, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if sess, err := NewSession(file, 1, time.Now()); err == nil {
+		t.Errorf("NewSession under a regular file: got %+v, want an error", sess)
+	}
+}
+
+func TestAppendLine_TargetIsADirectory(t *testing.T) {
+	sess, err := NewSession(t.TempDir(), 1, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// forks/ exists as a directory, so it cannot be opened for append.
+	if err := sess.AppendLine("forks", []byte("x")); err == nil {
+		t.Error("AppendLine onto a directory: want an error")
+	}
+}
+
+func TestFsync_MissingDir(t *testing.T) {
+	if err := fsync(filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Error("fsync of a missing directory: want an error")
+	}
+}
+
+func TestWriteForkStats_UnencodableStats(t *testing.T) {
+	sess, err := NewSession(t.TempDir(), 1, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteForkStats(sess, 1, map[string]any{"bad": make(chan int)}); err == nil {
+		t.Error("WriteForkStats with a channel value: want an encoding error")
+	}
+	if _, err := os.Stat(sess.Path(filepath.Join("forks", "critic-1", "stats.json"))); !os.IsNotExist(err) {
+		t.Errorf("stats.json written despite the encoding error: stat err = %v", err)
+	}
+}
