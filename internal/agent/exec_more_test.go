@@ -4,10 +4,13 @@
 package agent
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestExecEmptyBin(t *testing.T) {
@@ -67,5 +70,32 @@ func TestDecodeJSONLineFailureIncludesPreview(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "preview") {
 		t.Errorf("err missing preview: %v", err)
+	}
+}
+
+// TestExecStreamingOversizeLineFailsFast guards the streaming path when one
+// stdout line exceeds maxScanLine. The scanner stops there; if nothing drains
+// the rest of the pipe, the child blocks on a full pipe, Wait never returns,
+// and the call ends only at its deadline as a timeout (or never, with none).
+func TestExecStreamingOversizeLineFailsFast(t *testing.T) {
+	bin := buildHelper(t, "oversize-line", `package main
+import (
+	"os"
+	"strings"
+)
+func main() {
+	os.Stdout.WriteString(strings.Repeat("x", 9*1024*1024) + "\n")
+	os.Stdout.WriteString("{\"type\":\"result\"}\n")
+}
+`)
+	res, err := Exec(context.Background(), Run{
+		Bin: bin, Cwd: t.TempDir(), Env: CleanEnv(), Deadline: 10 * time.Second,
+		OnStdoutLine: func([]byte) {},
+	})
+	if res.Killed {
+		t.Fatalf("Exec hung until its deadline (err=%v); want the scanner error at once", err)
+	}
+	if !errors.Is(err, bufio.ErrTooLong) {
+		t.Errorf("Exec err = %v, want bufio.ErrTooLong", err)
 	}
 }
