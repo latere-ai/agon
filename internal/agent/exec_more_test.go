@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -59,6 +60,84 @@ func TestStreamJSONLargeLine(t *testing.T) {
 	}
 	if got != 1 {
 		t.Errorf("visited %d lines, want 1", got)
+	}
+}
+
+func TestCleanEnvDropsNamedKeys(t *testing.T) {
+	t.Setenv("AGON_TEST_DROP", "1")
+	t.Setenv("AGON_TEST_KEEP", "1")
+	env := CleanEnv("AGON_TEST_DROP")
+	if slices.Contains(env, "AGON_TEST_DROP=1") {
+		t.Error("named key not dropped")
+	}
+	if !slices.Contains(env, "AGON_TEST_KEEP=1") {
+		t.Error("unnamed key dropped")
+	}
+}
+
+// TestExecStreamingDeliversLinesAndExitCode: with OnStdoutLine set, each
+// line reaches the callback as it is written, the full stdout is still
+// buffered, and a non-zero exit is reported with its code.
+func TestExecStreamingDeliversLinesAndExitCode(t *testing.T) {
+	var lines []string
+	res, err := Exec(context.Background(), Run{
+		Bin: "sh", Args: []string{"-c", "echo one; echo two; exit 7"},
+		Cwd: t.TempDir(), Env: CleanEnv(), Deadline: 5 * time.Second,
+		OnStdoutLine: func(b []byte) { lines = append(lines, string(b)) },
+	})
+	if err == nil {
+		t.Fatal("expected an error for a non-zero exit")
+	}
+	if res.ExitCode != 7 || res.Killed {
+		t.Errorf("ExitCode = %d, Killed = %v; want 7, false", res.ExitCode, res.Killed)
+	}
+	if strings.Join(lines, ",") != "one,two" {
+		t.Errorf("callback lines = %q, want [one two]", lines)
+	}
+	if string(res.Stdout) != "one\ntwo\n" {
+		t.Errorf("Stdout = %q", res.Stdout)
+	}
+}
+
+func TestExecStreamingDeadline(t *testing.T) {
+	res, err := Exec(context.Background(), Run{
+		Bin: "sh", Args: []string{"-c", "exec sleep 5"},
+		Cwd: t.TempDir(), Env: CleanEnv(), Deadline: 200 * time.Millisecond,
+		OnStdoutLine: func([]byte) {},
+	})
+	if err == nil {
+		t.Fatal("expected an error past the deadline")
+	}
+	if !res.Killed {
+		t.Error("expected Killed=true")
+	}
+}
+
+func TestExecStreamingMissingBinary(t *testing.T) {
+	_, err := Exec(context.Background(), Run{
+		Bin: "/no/such/binary-z9z", Cwd: t.TempDir(), Env: CleanEnv(),
+		OnStdoutLine: func([]byte) { t.Error("callback ran for a binary that never started") },
+	})
+	if err == nil {
+		t.Fatal("expected a start error")
+	}
+}
+
+func TestStreamJSONStopsOnVisitError(t *testing.T) {
+	stop := errors.New("stop")
+	var seen int
+	err := StreamJSON(strings.NewReader("{\"n\":1}\n{\"n\":2}\n{\"n\":3}\n"), func(json.RawMessage) error {
+		seen++
+		if seen == 2 {
+			return stop
+		}
+		return nil
+	})
+	if !errors.Is(err, stop) {
+		t.Errorf("StreamJSON err = %v, want the visit error", err)
+	}
+	if seen != 2 {
+		t.Errorf("visited %d objects, want 2", seen)
 	}
 }
 
