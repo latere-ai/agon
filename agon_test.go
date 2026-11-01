@@ -5,6 +5,7 @@ package agon_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -193,5 +194,143 @@ func TestEngineMaxRoundsZeroDefaults(t *testing.T) {
 			rounds = sum.Forks[0].Rounds
 		}
 		t.Fatalf("MaxRounds: 0 ran no rounds; termination=%s, fork rounds=%d", sum.Termination, rounds)
+	}
+}
+
+// TestAssemblePromptListsPriorRounds asserts that from round 3 onward the
+// prompt points the critic at each prior round file by path, round and role.
+func TestAssemblePromptListsPriorRounds(t *testing.T) {
+	got := agon.AssemblePrompt(agon.CriticInput{
+		SystemPrompt: "you are a security critic",
+		TaskContext:  "add auth",
+		DiffPatch:    "+x := 1",
+		PriorRoundFiles: []agon.RoundFileRef{
+			{Path: "forks/critic-1/rounds/r1-critic.md", Round: 1, Role: "critic"},
+			{Path: "forks/critic-1/rounds/r2-proposer.md", Round: 2, Role: "proposer"},
+		},
+	})
+	for _, want := range []string{
+		"# Prior rounds",
+		"- @forks/critic-1/rounds/r1-critic.md - round 1 critic\n",
+		"- @forks/critic-1/rounds/r2-proposer.md - round 2 proposer\n",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("AssemblePrompt output missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// failingProposer returns firstErr from FirstRound and nextErr from
+// NextRound; a nil error yields a normal reply.
+type failingProposer struct {
+	firstErr, nextErr error
+}
+
+func (p *failingProposer) FirstRound(_ context.Context, _ string) (*agon.ProposerResult, error) {
+	if p.firstErr != nil {
+		return nil, p.firstErr
+	}
+	return &agon.ProposerResult{ForkID: "fork-abc", Response: "looks fine"}, nil
+}
+
+func (p *failingProposer) NextRound(_ context.Context, forkID, _ string) (*agon.ProposerResult, error) {
+	if p.nextErr != nil {
+		return nil, p.nextErr
+	}
+	return &agon.ProposerResult{ForkID: forkID, Response: "looks fine"}, nil
+}
+
+// failingCritic returns err from every Round.
+type failingCritic struct{ err error }
+
+func (c *failingCritic) Round(_ context.Context, _ agon.CriticInput) (*agon.CriticResult, error) {
+	return nil, c.err
+}
+
+// openAttack is a round-1 critic document with one attack the stub proposers
+// never concede or rebut.
+const openAttack = "# Critic 1 - round 1 attacks\n\naspect: security\n\n" +
+	"## c1-1 [main.go:5]\n\n" +
+	"claim: password logged in plaintext\n\n" +
+	"expected violation: log line exposes secret\n\n" +
+	"reproduction:\n```\ngo test ./...\n```\n"
+
+// TestEngineRun_StateDirNotADirectory asserts Run reports the session
+// folder it could not create rather than running a debate it cannot record.
+func TestEngineRun_StateDirNotADirectory(t *testing.T) {
+	file := filepath.Join(t.TempDir(), "state")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	eng := &agon.Engine{
+		StateDir:  file,
+		Cwd:       t.TempDir(),
+		Proposer:  &stubProposer{forkID: "fork-abc", reply: "ack"},
+		NewCritic: func(_ int) agon.Critic { return &stubCritic{} },
+	}
+	sum, err := eng.Run(context.Background())
+	if err == nil {
+		t.Fatalf("Engine.Run with a file as StateDir: got summary %+v, want an error", sum)
+	}
+}
+
+// TestEngineRun_AgentErrors asserts an error from either side of the debate
+// ends Run with that error, for the critic, the proposer's first round, and
+// the proposer's later rounds.
+func TestEngineRun_AgentErrors(t *testing.T) {
+	boom := errors.New("agent exited 1")
+	for _, tc := range []struct {
+		name     string
+		proposer agon.Proposer
+		critic   agon.Critic
+	}{
+		{"critic", &stubProposer{forkID: "fork-abc", reply: "ack"}, &failingCritic{err: boom}},
+		{"proposer first round", &failingProposer{firstErr: boom}, &stubCritic{rounds: []string{openAttack}}},
+		{"proposer next round", &failingProposer{nextErr: boom}, &stubCritic{rounds: []string{openAttack}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			eng := &agon.Engine{
+				StateDir:    t.TempDir(),
+				Cwd:         t.TempDir(),
+				ForkCount:   1,
+				Proposer:    tc.proposer,
+				NewCritic:   func(_ int) agon.Critic { return tc.critic },
+				MaxRounds:   6,
+				TaskContext: "add user login",
+				DiffPatch:   "+password := req.Password",
+			}
+			sum, err := eng.Run(context.Background())
+			if !errors.Is(err, boom) {
+				t.Fatalf("Engine.Run = (%+v, %v), want an error wrapping %v", sum, err, boom)
+			}
+			if sum != nil {
+				t.Errorf("Summary = %+v, want nil on error", sum)
+			}
+		})
+	}
+}
+
+// TestEngineRun_HeadlineNamesOpenAttack asserts an attack the proposer never
+// answered is counted as unresolved and its claim becomes the headline.
+func TestEngineRun_HeadlineNamesOpenAttack(t *testing.T) {
+	eng := &agon.Engine{
+		StateDir:    t.TempDir(),
+		Cwd:         t.TempDir(),
+		ForkCount:   1,
+		Proposer:    &stubProposer{forkID: "fork-abc", reply: "looks fine"},
+		NewCritic:   func(_ int) agon.Critic { return &stubCritic{rounds: []string{openAttack}} },
+		MaxRounds:   2,
+		TaskContext: "add user login",
+		DiffPatch:   "+password := req.Password",
+	}
+	sum, err := eng.Run(context.Background())
+	if err != nil {
+		t.Fatalf("Engine.Run: %v", err)
+	}
+	if sum.Unresolved != 1 {
+		t.Errorf("Unresolved = %d, want 1", sum.Unresolved)
+	}
+	if sum.Headline != "password logged in plaintext" {
+		t.Errorf("Headline = %q, want the open attack's claim", sum.Headline)
 	}
 }

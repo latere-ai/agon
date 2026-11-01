@@ -5,6 +5,7 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -307,5 +308,164 @@ func main() {
 	_, err := p.FirstRound(context.Background(), "ping")
 	if err == nil || !strings.Contains(err.Error(), "cwd mismatch") {
 		t.Errorf("expected ErrCwdMismatch, got %v", err)
+	}
+}
+
+// roundInput is the first-round input the critic driver tests share.
+func roundInput(t *testing.T, deadline time.Duration) CriticInput {
+	t.Helper()
+	return CriticInput{
+		Aspect: critic.Lookup("security"), CriticIndex: 1, Round: 1,
+		SystemPrompt: "x", TaskContext: "t", DiffPatch: "d",
+		Cwd: t.TempDir(), Deadline: deadline,
+	}
+}
+
+// TestCodexCriticEventShapes feeds every content-bearing event shape codex
+// releases have used. Each non-empty text joins the document on its own line;
+// an empty one adds no blank line, and a message whose content is neither a
+// part list nor a string adds nothing.
+func TestCodexCriticEventShapes(t *testing.T) {
+	stub := writeStub(t, "codex", `#!/usr/bin/env bash
+cat <<'EOF'
+{"type":"agent_message","content":"one"}
+{"type":"agent_message","content":""}
+{"type":"agent_text","text":"two"}
+{"type":"task_complete","result":"three"}
+{"type":"message","message":{"content":[{"type":"text","text":"four"},{"type":"image","text":"not text"}]}}
+{"type":"message","message":{"content":"five"}}
+{"type":"message","message":{"content":7}}
+EOF
+`)
+	res, err := (&CodexCritic{Bin: stub}).Round(context.Background(), roundInput(t, 5*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "one\ntwo\nthree\nfour\nfive"; res.Markdown != want {
+		t.Errorf("Markdown = %q, want %q", res.Markdown, want)
+	}
+}
+
+// TestCodexCriticCachedAboveInput: a usage event whose cached count exceeds
+// its input count would give a negative fresh-input bucket; the whole input
+// count is taken as fresh instead.
+func TestCodexCriticCachedAboveInput(t *testing.T) {
+	stub := writeStub(t, "codex", `#!/usr/bin/env bash
+cat <<'EOF'
+{"type":"agent_message","content":"# Critic 1 - round 1 attacks"}
+{"type":"token_count","usage":{"input_tokens":5,"cached_input_tokens":9,"output_tokens":1}}
+EOF
+`)
+	res, err := (&CodexCritic{Bin: stub}).Round(context.Background(), roundInput(t, 5*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Usage.Input != 5 || res.Usage.CacheRead != 9 || res.Usage.Output != 1 {
+		t.Errorf("Usage = %+v, want input 5, cache read 9, output 1", res.Usage)
+	}
+}
+
+// TestCodexCriticRawMarkdownFallback: a codex that ignores --json and prints
+// the markdown document directly still yields that document.
+func TestCodexCriticRawMarkdownFallback(t *testing.T) {
+	stub := writeStub(t, "codex", "#!/usr/bin/env bash\nprintf '\\n# Critic 1 - round 1 attacks\\n\\naspect: security\\n'\n")
+	res, err := (&CodexCritic{Bin: stub}).Round(context.Background(), roundInput(t, 5*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "# Critic 1 - round 1 attacks\n\naspect: security"; res.Markdown != want {
+		t.Errorf("Markdown = %q, want %q", res.Markdown, want)
+	}
+}
+
+// TestCodexCriticEmptyContentPreviewTruncated: when no event carries content,
+// the error counts the events and quotes at most 500 bytes of stdout.
+func TestCodexCriticEmptyContentPreviewTruncated(t *testing.T) {
+	stub := writeStub(t, "codex", "#!/usr/bin/env bash\nfor i in {1..60}; do echo '{\"type\":\"turn.started\"}'; done\n")
+	_, err := (&CodexCritic{Bin: stub}).Round(context.Background(), roundInput(t, 5*time.Second))
+	if !errors.Is(err, ErrEmptyContent) {
+		t.Fatalf("got %v, want ErrEmptyContent", err)
+	}
+	for _, want := range []string{"60 events parsed", "...(truncated)"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error lacks %q: %v", want, err)
+		}
+	}
+}
+
+// TestCodexCriticDefaultBinAndModel asserts an empty Bin runs the codex found
+// on PATH, read-only, with the round's model. PATH holds only the fake.
+func TestCodexCriticDefaultBinAndModel(t *testing.T) {
+	bin := buildHelper(t, "codex", `package main
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"strings"
+)
+func main() {
+	b, _ := json.Marshal(map[string]any{"type": "agent_message", "content": strings.Join(os.Args[1:], "\n")})
+	fmt.Println(string(b))
+}
+`)
+	t.Setenv("PATH", filepath.Dir(bin))
+	in := roundInput(t, 5*time.Second)
+	in.Model = "model-x"
+	res, err := (&CodexCritic{}).Round(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"--sandbox\nread-only", "--model\nmodel-x"} {
+		if !strings.Contains(res.Markdown, want) {
+			t.Errorf("argv lacks %q:\n%s", want, res.Markdown)
+		}
+	}
+}
+
+func TestCodexCriticTimeout(t *testing.T) {
+	stub := writeStub(t, "codex", "#!/usr/bin/env bash\nexec sleep 5\n")
+	_, err := (&CodexCritic{Bin: stub}).Round(context.Background(), roundInput(t, 200*time.Millisecond))
+	if !errors.Is(err, ErrTimeout) {
+		t.Errorf("got %v, want ErrTimeout", err)
+	}
+}
+
+// TestClaudeCriticDefaultBinAndModel asserts an empty Bin runs the claude
+// found on PATH with the round's model. PATH holds only the fake.
+func TestClaudeCriticDefaultBinAndModel(t *testing.T) {
+	bin := buildHelper(t, "claude", argvEchoClaude)
+	t.Setenv("PATH", filepath.Dir(bin))
+	in := roundInput(t, 5*time.Second)
+	in.Model = "model-x"
+	res, err := (&ClaudeCritic{}).Round(context.Background(), in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(res.Markdown, "--model\nmodel-x") {
+		t.Errorf("argv lacks the model flag:\n%s", res.Markdown)
+	}
+}
+
+// TestClaudeCriticFailures maps each way a claude critic call fails to its
+// typed error.
+func TestClaudeCriticFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		script   string
+		deadline time.Duration
+		want     error
+	}{
+		{"timeout", "exec sleep 5", 200 * time.Millisecond, ErrTimeout},
+		{"not json", "echo not-json", 5 * time.Second, ErrJSON},
+		{"is_error", `echo '{"type":"result","subtype":"error_max_turns","result":"","is_error":true}'`, 5 * time.Second, ErrAgentError},
+		{"empty result", `echo '{"type":"result","subtype":"success","result":"","is_error":false}'`, 5 * time.Second, ErrEmptyContent},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stub := writeStub(t, "claude", "#!/usr/bin/env bash\n"+tc.script+"\n")
+			_, err := (&ClaudeCritic{Bin: stub}).Round(context.Background(), roundInput(t, tc.deadline))
+			if !errors.Is(err, tc.want) {
+				t.Errorf("got %v, want %v", err, tc.want)
+			}
+		})
 	}
 }

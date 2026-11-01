@@ -40,16 +40,6 @@ license:
   spdx: Apache-2.0
   holder: Latere AI
 
-# Gates this repository does not run yet. Each entry is temporary by
-# construction: after the date the gate runs and fails on its own terms.
-waive:
-  cover:
-    reason: >-
-      the root package (87.8%), internal/agent (87.8%) and internal/state
-      (89.9%) sit just under the floor, as they did inside topos; closing that
-      is test work in the round loop rather than a threshold to choose
-    until: 2026-10-31
-
 # The identity shape of the family: a library, which verifies no token and
 # serves no request.
 identity:

@@ -136,6 +136,15 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 		copy(cp, line)
 		r.OnStdoutLine(cp)
 	}
+	scErr := sc.Err()
+	if scErr != nil {
+		// The scanner stops at a line over maxScanLine while the child may
+		// still be writing. Drain the rest so the child is not blocked on a
+		// full pipe: Wait returns only after the child exits.
+		if _, err := io.Copy(io.Discard, pipe); err != nil {
+			scErr = errors.Join(scErr, err)
+		}
+	}
 	waitErr := cmd.Wait()
 	stdoutBytes = stdoutBuf.Bytes()
 	res := Result{
@@ -152,7 +161,7 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 		}
 		return res, waitErr
 	}
-	if scErr := sc.Err(); scErr != nil {
+	if scErr != nil {
 		return res, scErr
 	}
 	return res, nil
