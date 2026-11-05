@@ -5,7 +5,8 @@ package agent
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -158,7 +159,7 @@ func (c *CodexCritic) Round(ctx context.Context, in CriticInput) (*CriticResult,
 		usage    TokenUsage
 		eventCt  int
 	)
-	visit := func(raw json.RawMessage) error {
+	visit := func(raw jsontext.Value) error {
 		eventCt++
 		// Codex's --json event shapes have evolved across releases. Accept:
 		//   {"type":"thread.started","thread_id":"..."}
@@ -180,7 +181,7 @@ func (c *CodexCritic) Round(ctx context.Context, in CriticInput) (*CriticResult,
 				Text    string `json:"text"`
 			} `json:"item"`
 			Message struct {
-				Content json.RawMessage `json:"content"`
+				Content jsontext.Value `json:"content"`
 			} `json:"message"`
 			Usage struct {
 				InputTokens           int `json:"input_tokens"`
@@ -194,7 +195,7 @@ func (c *CodexCritic) Round(ctx context.Context, in CriticInput) (*CriticResult,
 		// A line that is not a JSON event (evolving codex output shapes,
 		// non-JSON noise) is skipped rather than aborting the whole stream.
 		// Matches the tolerant json.Unmarshal checks below.
-		if json.Unmarshal(raw, &ev) == nil {
+		if json.Unmarshal(raw, &ev, foreignJSON) == nil {
 			appendIfNonEmpty := func(s string) {
 				if s == "" {
 					return
@@ -248,7 +249,7 @@ func (c *CodexCritic) Round(ctx context.Context, in CriticInput) (*CriticResult,
 					Type string `json:"type"`
 					Text string `json:"text"`
 				}
-				if json.Unmarshal(ev.Message.Content, &parts) == nil {
+				if json.Unmarshal(ev.Message.Content, &parts, foreignJSON) == nil {
 					for _, p := range parts {
 						if p.Type == "text" {
 							appendIfNonEmpty(p.Text)
@@ -257,7 +258,7 @@ func (c *CodexCritic) Round(ctx context.Context, in CriticInput) (*CriticResult,
 				} else {
 					// Plain string content shape.
 					var s string
-					if json.Unmarshal(ev.Message.Content, &s) == nil {
+					if json.Unmarshal(ev.Message.Content, &s, foreignJSON) == nil {
 						appendIfNonEmpty(s)
 					}
 				}

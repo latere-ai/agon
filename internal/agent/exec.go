@@ -7,7 +7,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -195,11 +196,11 @@ func CleanEnv(remove ...string) []string {
 // control characters in string fields. Falls back to a sanitizing pass
 // if the standard decoder rejects the input.
 func DecodeJSONLine(line []byte, dst any) error {
-	if err := json.Unmarshal(line, dst); err == nil {
+	if err := json.Unmarshal(line, dst, foreignJSON); err == nil {
 		return nil
 	}
 	sanitized := sanitizeControls(line)
-	if err := json.Unmarshal(sanitized, dst); err != nil {
+	if err := json.Unmarshal(sanitized, dst, foreignJSON); err != nil {
 		// Last-resort: log a hex preview of the offending region.
 		return fmt.Errorf("decode JSON after sanitize: %w (preview: %x)", err, line[:min(len(line), 256)])
 	}
@@ -209,7 +210,7 @@ func DecodeJSONLine(line []byte, dst any) error {
 // StreamJSON reads stdout line-by-line and feeds each successfully
 // decoded raw object to visit. Empty lines and undecodable lines are
 // skipped silently.
-func StreamJSON(stdout io.Reader, visit func(json.RawMessage) error) error {
+func StreamJSON(stdout io.Reader, visit func(jsontext.Value) error) error {
 	sc := bufio.NewScanner(stdout)
 	sc.Buffer(make([]byte, 0, 64*1024), maxScanLine)
 	for sc.Scan() {
@@ -217,7 +218,7 @@ func StreamJSON(stdout io.Reader, visit func(json.RawMessage) error) error {
 		if len(line) == 0 {
 			continue
 		}
-		var raw json.RawMessage
+		var raw jsontext.Value
 		if err := DecodeJSONLine(line, &raw); err != nil {
 			continue
 		}

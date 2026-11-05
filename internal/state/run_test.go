@@ -4,7 +4,7 @@
 package state
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"os"
 	"strings"
 	"testing"

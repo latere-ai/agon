@@ -186,7 +186,7 @@ func writeStub(t *testing.T, name, body string) string {
 // flags a driver passed.
 const argvEchoClaude = `package main
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strings"

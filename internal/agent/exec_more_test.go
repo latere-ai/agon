@@ -6,7 +6,7 @@ package agent
 import (
 	"bufio"
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"slices"
 	"strings"
@@ -52,7 +52,7 @@ func TestStreamJSONLargeLine(t *testing.T) {
 	line := `{"text":"` + big + `"}` + "\n"
 	in := strings.NewReader(line)
 	var got int
-	if err := StreamJSON(in, func(json.RawMessage) error {
+	if err := StreamJSON(in, func(jsontext.Value) error {
 		got++
 		return nil
 	}); err != nil {
@@ -126,7 +126,7 @@ func TestExecStreamingMissingBinary(t *testing.T) {
 func TestStreamJSONStopsOnVisitError(t *testing.T) {
 	stop := errors.New("stop")
 	var seen int
-	err := StreamJSON(strings.NewReader("{\"n\":1}\n{\"n\":2}\n{\"n\":3}\n"), func(json.RawMessage) error {
+	err := StreamJSON(strings.NewReader("{\"n\":1}\n{\"n\":2}\n{\"n\":3}\n"), func(jsontext.Value) error {
 		seen++
 		if seen == 2 {
 			return stop

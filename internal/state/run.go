@@ -4,7 +4,8 @@
 package state
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"time"
 
 	"latere.ai/x/agon/internal/agent"
@@ -88,7 +89,7 @@ type Stats struct {
 	ByStatus              map[string]int    `json:"by_status"`
 	RoundsExecutedPerFork []int             `json:"rounds_executed_per_fork"`
 	TokensUsed            int               `json:"tokens_used"`
-	TokenUsage            *agent.TokenUsage `json:"token_usage,omitempty"`
+	TokenUsage            *agent.TokenUsage `json:"token_usage,omitzero"`
 	CostCap               int               `json:"cost_cap"`
 	WallSeconds           int               `json:"wall_seconds"`
 }
@@ -123,7 +124,7 @@ func WriteStart(s *Session, x *StartFile) error {
 	if x.Schema == "" {
 		x.Schema = SchemaStart
 	}
-	b, err := json.MarshalIndent(x, "", "  ")
+	b, err := json.Marshal(x, StoredJSON, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}
@@ -135,7 +136,7 @@ func WriteEnd(s *Session, x *EndFile) error {
 	if x.Schema == "" {
 		x.Schema = SchemaEnd
 	}
-	b, err := json.MarshalIndent(x, "", "  ")
+	b, err := json.Marshal(x, StoredJSON, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}
@@ -144,7 +145,7 @@ func WriteEnd(s *Session, x *EndFile) error {
 
 // AppendTranscript appends one record to <session>/transcript.jsonl.
 func AppendTranscript(s *Session, r *TranscriptRecord) error {
-	b, err := json.Marshal(r)
+	b, err := json.Marshal(r, StoredJSON)
 	if err != nil {
 		return err
 	}

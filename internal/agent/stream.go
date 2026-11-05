@@ -5,7 +5,8 @@ package agent
 
 import (
 	"cmp"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 
@@ -32,23 +33,23 @@ func FormatClaudeStreamEvent(line []byte) string {
 	var ev struct {
 		Type    string `json:"type"`
 		Message struct {
-			Content json.RawMessage `json:"content"`
+			Content jsontext.Value `json:"content"`
 		} `json:"message"`
 	}
-	if err := json.Unmarshal(line, &ev); err != nil {
+	if err := json.Unmarshal(line, &ev, foreignJSON); err != nil {
 		return ""
 	}
 	if ev.Type != "assistant" {
 		return ""
 	}
 	var parts []struct {
-		Type     string          `json:"type"`
-		Name     string          `json:"name"`
-		Input    json.RawMessage `json:"input"`
-		Text     string          `json:"text"`
-		Thinking string          `json:"thinking"`
+		Type     string         `json:"type"`
+		Name     string         `json:"name"`
+		Input    jsontext.Value `json:"input"`
+		Text     string         `json:"text"`
+		Thinking string         `json:"thinking"`
 	}
-	if json.Unmarshal(ev.Message.Content, &parts) != nil {
+	if json.Unmarshal(ev.Message.Content, &parts, foreignJSON) != nil {
 		return ""
 	}
 	for _, p := range parts {
@@ -82,9 +83,9 @@ func FormatClaudeStreamEvent(line []byte) string {
 // keys (file_path / path / command / pattern); we surface the first
 // one that's a non-empty string. Falls back to a short JSON
 // preview when nothing matches.
-func summarizeToolInput(input json.RawMessage) string {
+func summarizeToolInput(input jsontext.Value) string {
 	var generic map[string]any
-	if json.Unmarshal(input, &generic) != nil {
+	if json.Unmarshal(input, &generic, foreignJSON) != nil {
 		return ""
 	}
 	for _, key := range []string{"file_path", "path", "command", "pattern", "url", "query"} {
@@ -130,18 +131,18 @@ func FormatCodexStreamEvent(line []byte) string {
 	var ev struct {
 		Type string `json:"type"`
 		Item struct {
-			Type    string          `json:"type"`
-			Name    string          `json:"name"`
-			Command string          `json:"command"`
-			Path    string          `json:"path"`
-			Text    string          `json:"text"`
-			Content string          `json:"content"`
-			Summary string          `json:"summary"`
-			Input   json.RawMessage `json:"input"`
-			Args    json.RawMessage `json:"args"`
+			Type    string         `json:"type"`
+			Name    string         `json:"name"`
+			Command string         `json:"command"`
+			Path    string         `json:"path"`
+			Text    string         `json:"text"`
+			Content string         `json:"content"`
+			Summary string         `json:"summary"`
+			Input   jsontext.Value `json:"input"`
+			Args    jsontext.Value `json:"args"`
 		} `json:"item"`
 	}
-	if err := json.Unmarshal(line, &ev); err != nil {
+	if err := json.Unmarshal(line, &ev, foreignJSON); err != nil {
 		return ""
 	}
 	// Live signal preferred (item.started); fall through to

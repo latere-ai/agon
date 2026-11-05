@@ -4,7 +4,7 @@
 package state
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"testing"
 	"time"
@@ -53,14 +53,14 @@ func BenchmarkJSONSessionStartFileMarshal(b *testing.B) {
 		b.Run(fmt.Sprintf("files%d", n), func(b *testing.B) {
 			x := jsonBenchStart(n)
 			x.Schema = SchemaStart
-			doc, err := json.Marshal(x)
+			doc, err := json.Marshal(x, StoredJSON)
 			if err != nil {
 				b.Fatal(err)
 			}
 			b.ReportAllocs()
 			b.SetBytes(int64(len(doc)))
 			for b.Loop() {
-				if _, err := json.Marshal(x); err != nil {
+				if _, err := json.Marshal(x, StoredJSON); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -88,14 +88,14 @@ func BenchmarkJSONSessionEndFileMarshal(b *testing.B) {
 		Extras:      map[string]any{"verifier": "ci", "attempt": 1},
 	}
 	x.Schema = SchemaEnd
-	doc, err := json.Marshal(x)
+	doc, err := json.Marshal(x, StoredJSON)
 	if err != nil {
 		b.Fatal(err)
 	}
 	b.ReportAllocs()
 	b.SetBytes(int64(len(doc)))
 	for b.Loop() {
-		if _, err := json.Marshal(x); err != nil {
+		if _, err := json.Marshal(x, StoredJSON); err != nil {
 			b.Fatal(err)
 		}
 	}

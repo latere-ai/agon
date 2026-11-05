@@ -215,7 +215,7 @@ func main() {
 func TestClaudeCriticDisallowsMutatingTools(t *testing.T) {
 	bin := buildHelper(t, "argv-claude", `package main
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strings"
@@ -398,7 +398,7 @@ func TestCodexCriticEmptyContentPreviewTruncated(t *testing.T) {
 func TestCodexCriticDefaultBinAndModel(t *testing.T) {
 	bin := buildHelper(t, "codex", `package main
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strings"

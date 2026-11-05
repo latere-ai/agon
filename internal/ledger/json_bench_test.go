@@ -4,7 +4,7 @@
 package ledger
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"strings"
@@ -86,14 +86,14 @@ func BenchmarkJSONLedgerSpillDocMarshal(b *testing.B) {
 		ExpectedViolation: jsonBenchProse(body / 4),
 		Reproduction:      jsonBenchProse(body / 4),
 	}
-	enc, err := json.Marshal(doc)
+	enc, err := json.Marshal(doc, state.StoredJSON)
 	if err != nil {
 		b.Fatal(err)
 	}
 	b.ReportAllocs()
 	b.SetBytes(int64(len(enc)))
 	for b.Loop() {
-		if _, err := json.Marshal(doc); err != nil {
+		if _, err := json.Marshal(doc, state.StoredJSON); err != nil {
 			b.Fatal(err)
 		}
 	}

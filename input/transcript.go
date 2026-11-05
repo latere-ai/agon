@@ -5,7 +5,8 @@ package input
 
 import (
 	"bufio"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -133,21 +134,21 @@ func ReadTranscript(path string) (*Transcript, error) {
 		if len(line) == 0 {
 			continue
 		}
-		var probe map[string]json.RawMessage
-		if err := json.Unmarshal(line, &probe); err != nil {
+		var probe map[string]jsontext.Value
+		if err := json.Unmarshal(line, &probe, foreignJSON); err != nil {
 			bad++
 			continue
 		}
 		t.LineCount++
 		if t.StartedAt.IsZero() {
 			if ts, ok := probe["timestamp"]; ok {
-				_ = json.Unmarshal(ts, &t.StartedAt)
+				_ = json.Unmarshal(ts, &t.StartedAt, foreignJSON)
 			}
 		}
 		if first == nil {
 			if typ, ok := probe["type"]; ok {
 				var s string
-				if err := json.Unmarshal(typ, &s); err == nil && s == "user" {
+				if err := json.Unmarshal(typ, &s, foreignJSON); err == nil && s == "user" {
 					first = append([]byte(nil), line...)
 				}
 			}
@@ -181,11 +182,11 @@ func ExtractFirstUser(records [][]byte) (string, error) {
 		var rec struct {
 			Type    string `json:"type"`
 			Message struct {
-				Role    string          `json:"role"`
-				Content json.RawMessage `json:"content"`
+				Role    string         `json:"role"`
+				Content jsontext.Value `json:"content"`
 			} `json:"message"`
 		}
-		if err := json.Unmarshal(line, &rec); err != nil {
+		if err := json.Unmarshal(line, &rec, foreignJSON); err != nil {
 			continue
 		}
 		if rec.Type != "user" {
@@ -193,7 +194,7 @@ func ExtractFirstUser(records [][]byte) (string, error) {
 		}
 		// String form?
 		var s string
-		if err := json.Unmarshal(rec.Message.Content, &s); err == nil {
+		if err := json.Unmarshal(rec.Message.Content, &s, foreignJSON); err == nil {
 			return s, nil
 		}
 		// Array form.
@@ -201,7 +202,7 @@ func ExtractFirstUser(records [][]byte) (string, error) {
 			Type string `json:"type"`
 			Text string `json:"text"`
 		}
-		if err := json.Unmarshal(rec.Message.Content, &parts); err == nil {
+		if err := json.Unmarshal(rec.Message.Content, &parts, foreignJSON); err == nil {
 			var b strings.Builder
 			for _, p := range parts {
 				if p.Type != "text" {

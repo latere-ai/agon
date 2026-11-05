@@ -5,7 +5,8 @@ package state
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"os/exec"
@@ -54,7 +55,7 @@ func WriteProposerState(s *Session, fork int, ps *ProposerState) error {
 	if ps.Schema == "" {
 		ps.Schema = SchemaProposerState
 	}
-	b, err := json.MarshalIndent(ps, "", "  ")
+	b, err := json.Marshal(ps, StoredJSON, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}
@@ -70,7 +71,7 @@ func WriteForkDiff(s *Session, fork int, patch string) error {
 // any JSON-serializable shape; the round engine uses it for token-usage
 // breakdowns.
 func WriteForkStats(s *Session, fork int, stats any) error {
-	b, err := json.MarshalIndent(stats, "", "  ")
+	b, err := json.Marshal(stats, StoredJSON, jsontext.WithIndent("  "))
 	if err != nil {
 		return err
 	}

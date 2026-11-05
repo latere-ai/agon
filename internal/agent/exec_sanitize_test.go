@@ -5,7 +5,8 @@ package agent
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"strings"
 	"testing"
 )
@@ -55,9 +56,9 @@ func TestDecodeJSONLine_PlainCleanInput(t *testing.T) {
 func TestStreamJSON_HappyPath(t *testing.T) {
 	body := []byte(`{"a":1}` + "\n" + `{"a":2}` + "\n" + `{"a":3}` + "\n")
 	var got []int
-	err := StreamJSON(bytes.NewReader(body), func(raw json.RawMessage) error {
+	err := StreamJSON(bytes.NewReader(body), func(raw jsontext.Value) error {
 		var x struct{ A int }
-		_ = json.Unmarshal(raw, &x)
+		_ = json.Unmarshal(raw, &x, foreignJSON)
 		got = append(got, x.A)
 		return nil
 	})
@@ -72,7 +73,7 @@ func TestStreamJSON_HappyPath(t *testing.T) {
 func TestStreamJSON_SkipsBlankAndUndecodable(t *testing.T) {
 	body := []byte("\n{garbage}\n{\"a\":1}\n\n")
 	var hits int
-	err := StreamJSON(bytes.NewReader(body), func(json.RawMessage) error {
+	err := StreamJSON(bytes.NewReader(body), func(jsontext.Value) error {
 		hits++
 		return nil
 	})

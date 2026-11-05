@@ -5,7 +5,7 @@ package ledger
 
 import (
 	"bufio"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -47,7 +47,7 @@ type Record struct {
 	AttackID          string    `json:"attack_id"`
 	CriticIndex       int       `json:"critic_index"`
 	Aspect            string    `json:"aspect"`
-	RoundIntroduced   *int      `json:"round_introduced,omitempty"`
+	RoundIntroduced   *int      `json:"round_introduced,omitzero"`
 	Location          string    `json:"location,omitempty"`
 	Claim             string    `json:"claim,omitempty"`
 	ExpectedViolation string    `json:"expected_violation,omitempty"`
@@ -80,7 +80,7 @@ func Append(s *state.Session, r Record) error {
 		}
 		r.Claim, r.ExpectedViolation, r.Reproduction = "", "", ""
 	}
-	b, err := json.Marshal(r)
+	b, err := json.Marshal(r, state.StoredJSON)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func spillBody(s *state.Session, r *Record) error {
 	rel := filepath.Join("forks", fmt.Sprintf("critic-%d", r.CriticIndex), "attacks", r.AttackID+".json")
 	body, err := json.Marshal(spillDoc{
 		Claim: r.Claim, ExpectedViolation: r.ExpectedViolation, Reproduction: r.Reproduction,
-	})
+	}, state.StoredJSON)
 	if err != nil {
 		return err
 	}

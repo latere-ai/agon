@@ -4,7 +4,8 @@
 package agent
 
 import (
-	"encoding/json"
+	"encoding/json/jsontext"
+	"encoding/json/v2"
 	"fmt"
 	"strings"
 	"testing"
@@ -256,7 +257,7 @@ func BenchmarkJSONStreamJSONDecode(b *testing.B) {
 			b.SetBytes(int64(len(stdout)))
 			for b.Loop() {
 				n := 0
-				err := StreamJSON(strings.NewReader(string(stdout)), func(json.RawMessage) error {
+				err := StreamJSON(strings.NewReader(string(stdout)), func(jsontext.Value) error {
 					n++
 					return nil
 				})
