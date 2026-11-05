@@ -9,10 +9,15 @@ import (
 	"slices"
 	"strings"
 
+	"latere.ai/x/pkg/sanitize"
+
 	"latere.ai/x/agon/internal/ledger"
 	"latere.ai/x/agon/internal/round"
 	"latere.ai/x/agon/internal/state"
 )
+
+// maxLineRunes is how many characters of a field one summary line shows.
+const maxLineRunes = 200
 
 // Render renders summary.md for one finished run.
 type Render struct{}
@@ -141,16 +146,10 @@ func writeResolved(b *strings.Builder, r ledger.Record) {
 	}
 }
 
-func oneLine(s string) string {
-	s = strings.ReplaceAll(s, "\n", " ")
-	// Truncate on a rune boundary; slicing bytes can split a multibyte
-	// UTF-8 rune (the repo ships zh content) and emit mojibake into the
-	// rendered summary.md.
-	if r := []rune(s); len(r) > 200 {
-		s = string(r[:200]) + "..."
-	}
-	return strings.TrimSpace(s)
-}
+// oneLine collapses a model-written field to one display line of at most
+// maxLineRunes characters, so a newline, tab or separator cannot break the
+// markdown list item it sits in.
+func oneLine(s string) string { return sanitize.OneLine(s, maxLineRunes) }
 
 func unresolvedExcept(records []ledger.Record, exclude *ledger.Record) []ledger.Record {
 	out := make([]ledger.Record, 0, len(records))

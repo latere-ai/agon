@@ -20,7 +20,7 @@ func TestOneLineRuneBoundary(t *testing.T) {
 	if !utf8.ValidString(got) {
 		t.Errorf("oneLine produced invalid UTF-8: %q", got)
 	}
-	if want := strings.Repeat("世", 200) + "..."; got != want {
+	if want := strings.Repeat("世", 200) + "…"; got != want {
 		t.Errorf("oneLine truncation: got %d runes, want 200 runes + ellipsis", utf8.RuneCountInString(got))
 	}
 }
@@ -117,7 +117,16 @@ func TestOneLine(t *testing.T) {
 	if len(got) > 203 {
 		t.Errorf("long string not truncated: len=%d", len(got))
 	}
-	if !strings.HasSuffix(got, "...") {
+	if !strings.HasSuffix(got, "…") {
 		t.Errorf("long string should end with ellipsis: %q", got[len(got)-10:])
+	}
+}
+
+// TestOneLineCollapsesEveryWhitespace pins that CR, tab and the Unicode line
+// separators become one space, so none of them can break a summary list item.
+func TestOneLineCollapsesEveryWhitespace(t *testing.T) {
+	got := oneLine("a\r\nb\t\tc\u2028d\u2029 e")
+	if got != "a b c d e" {
+		t.Errorf("got %q, want %q", got, "a b c d e")
 	}
 }
