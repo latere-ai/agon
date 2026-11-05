@@ -15,6 +15,8 @@ that it sorts above them and `@latest` resolves to it.
 
 ## Unreleased
 
+## v0.3.1 - 2026-11-05
+
 ### Fixed
 
 - **Built with Go 1.27.3,** which fixes GO-2026-6809, a flaw in the
