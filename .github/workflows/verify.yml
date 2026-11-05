@@ -1,33 +1,25 @@
-name: verify
+name: ci
 
-# Every Go gate this module has runs through latere-ai/ci's reusable
-# pipeline, which asks the pinned lateregate which gates apply and runs one
-# job per gate. The checks live in latere.ai/x/ci-gate, pinned in go.mod, so
-# each runs identically from a laptop with `go tool lateregate`.
-
-# A push or pull request that changes only specs or markdown starts no run,
-# because no build or test here reads them. `lateregate release` runs the whole
-# bar, the spec tree included, before every tag.
+# The bar lives in latere-ai/ci-gate, pinned in go.mod, and the shared
+# workflow runs it. What this repository decides is in .lateregate.yaml.
+# `lateregate init` writes this file, the same in every repository.
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "specs/**"
-      - "**.md"
   pull_request:
-    paths-ignore:
-      - "specs/**"
-      - "**.md"
   workflow_dispatch:
 
 # A newer push to the same ref supersedes this run: its commit carries every
-# change this one would verify, and the runner is better spent on it.
+# change this one would verify.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
+# actions: read lets the gate find the last commit whose CI passed, which it
+# measures the change from.
 permissions:
   contents: read
+  actions: read
 
 jobs:
   gate:
