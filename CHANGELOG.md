@@ -20,6 +20,10 @@ that it sorts above them and `@latest` resolves to it.
 - **Built with Go 1.27.3,** which fixes GO-2026-6809, a flaw in the
   standard library's certificate verification.
 
+- **A summary's list item stays on one line.** Every run of whitespace in
+  a field, a carriage return, a tab or a line separator included, becomes
+  one space, so a field no longer breaks the list it sits in.
+
 ## v0.3.0 - 2026-10-21
 
 ### Added
