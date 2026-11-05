@@ -5,10 +5,19 @@ name: verify
 # job per gate. The checks live in latere.ai/x/ci-gate, pinned in go.mod, so
 # each runs identically from a laptop with `go tool lateregate`.
 
+# A push or pull request that changes only specs or markdown starts no run,
+# because no build or test here reads them. `lateregate release` runs the whole
+# bar, the spec tree included, before every tag.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "specs/**"
+      - "**.md"
   pull_request:
+    paths-ignore:
+      - "specs/**"
+      - "**.md"
   workflow_dispatch:
 
 # A newer push to the same ref supersedes this run: its commit carries every
