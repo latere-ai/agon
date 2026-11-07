@@ -47,8 +47,8 @@ body:
       description: The proposer and critic the review used.
       multiple: true
       options:
-        - claude.Proposer (a forked Claude Code session)
-        - claude.Critic (claude -p)
+        - claude.NewProposer (a forked Claude Code session)
+        - claude.NewCritic (claude -p)
         - critic package (a model call per round)
         - My own Proposer or Critic
         - Not applicable
