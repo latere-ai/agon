@@ -58,7 +58,7 @@ The protocol itself is [Debate protocol](026-protocol.md).
 | Public API | `agon` | The embedder contract: `Engine`, `Proposer`, `Critic`, `Verifier`, result types. See [engine-api.md](024-engine-api.md). |
 | Backends | `claude`, `critic` | Ready-made proposer/critic implementations over the claude CLI and a single model call. See [backends.md](023-backends.md). |
 | Inputs | `input` | Locate the Claude transcript, compute the working-tree diff. See [inputs.md](025-inputs.md). |
-| Orchestration | `internal/round` | The real round loop, termination detection, signal handling. |
+| Orchestration | `internal/round` | The real round loop and termination detection. It stops on a canceled context and installs no signal handler. |
 | Protocol | `internal/critic`, `internal/ledger` | Aspect prompts, attack format + parser, the attack ledger. |
 | Agents | `internal/agent` | Subprocess drivers for the `claude` and `codex` CLIs. |
 | Persistence | `internal/state` | Atomic on-disk session layout. See [session-format.md](027-session-format.md). |

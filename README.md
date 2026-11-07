@@ -181,7 +181,7 @@ if err != nil {
 }
 critics := critic.NewCriticFactory(critic.Config{
 	Model: llm.New(cfg),
-	Name:  "claude-sonnet-5-5",
+	Name:  "claude-sonnet-5",
 })
 
 // Straight to a provider, with your own key.
@@ -189,7 +189,7 @@ direct, err := llmdirect.New(llmdirect.ProviderAnthropic, apiKey, "")
 if err != nil {
 	return err
 }
-critics = critic.NewCriticFactory(critic.Config{Model: direct, Name: "claude-sonnet-5-5"})
+critics = critic.NewCriticFactory(critic.Config{Model: direct, Name: "claude-sonnet-5"})
 ```
 
 Each round sends the assembled critic prompt, diff included, as one turn with
@@ -234,7 +234,7 @@ func main() {
 		Cwd:         cwd,
 		Forks:       2,
 		Proposer:    claude.NewProposer(sessionID, cwd),
-		NewCritic:   critic.NewCriticFactory(critic.Config{Model: llm.New(cfg), Name: "claude-sonnet-5-5"}),
+		NewCritic:   critic.NewCriticFactory(critic.Config{Model: llm.New(cfg), Name: "claude-sonnet-5"}),
 		TaskContext: "add rate limiting to the search handler",
 		DiffPatch:   diff.Patch,
 	})
