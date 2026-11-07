@@ -86,7 +86,8 @@ func AssemblePrompt(in CriticInput) string {
 // and the prior round files. The public assembler in the adversarial
 // package appends the same block, so both prompt paths stay identical.
 // Rule 2 is also enforced on the claude driver through
-// criticDisallowedTools; the codex driver runs in its read-only sandbox.
+// criticTools and criticDisallowedTools; the codex driver runs in its
+// read-only sandbox.
 const Directives = `Output rules:
 1. Reply with the markdown attack document only, with no preamble and
    no trailing summary. The parser reads the reply verbatim.
@@ -99,11 +100,18 @@ const Directives = `Output rules:
 4. The first non-blank line is the top header
    "# Critic <i> - round <n> attacks".`
 
+// criticTools is the --tools value for the claude critic: the only
+// built-in tools it has. It can read the tree and the prior round files and
+// nothing else, so it cannot change the tree, run a command or reach the
+// network. --tools fixes the set for the call, and no settings file adds a
+// tool back.
+const criticTools = "Read,Grep,Glob"
+
 // criticDisallowedTools is the --disallowedTools value for the claude
-// critic: it can read the prior round files but cannot mutate the tree or
-// execute commands, which is Directives rule 2 enforced by the CLI rather
-// than by prose.
-const criticDisallowedTools = "Bash,Write,Edit,MultiEdit,NotebookEdit"
+// critic, the deny rules behind criticTools: the tools that change the tree
+// or run commands (Directives rule 2) and the web tools. A diff can steer
+// the critic, and a critic with a web tool could send the tree out.
+const criticDisallowedTools = "Bash,Write,Edit,MultiEdit,NotebookEdit,WebFetch,WebSearch"
 
 // CodexCritic invokes `codex exec --sandbox read-only --json`.
 //
@@ -326,7 +334,9 @@ func (c *ClaudeCritic) Round(ctx context.Context, in CriticInput) (*CriticResult
 	} else {
 		args = []string{"--output-format", "json", "--print"}
 	}
-	args = append(args, "--disallowedTools", criticDisallowedTools)
+	// --strict-mcp-config with no --mcp-config loads no MCP server, whatever
+	// the user's settings, a project or a plugin configures.
+	args = append(args, "--tools", criticTools, "--strict-mcp-config", "--disallowedTools", criticDisallowedTools)
 	if in.Model != "" {
 		args = append(args, "--model", in.Model)
 	}
