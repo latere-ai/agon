@@ -76,6 +76,21 @@ var (
 	fencePattern = regexp.MustCompile("(?s)```[^\\n]*\\n(.*?)```")
 )
 
+// maxIDPart bounds a number inside an attack id. A model can write any digit
+// string; capping it keeps maxSeq+1 from overflowing and keeps every id the
+// ledger stores short enough to be a file name.
+const maxIDPart = 1_000_000
+
+// parseIDPart parses one decimal part of an attack id and reports whether it
+// is in range.
+func parseIDPart(s string) (int, bool) {
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 || n > maxIDPart {
+		return 0, false
+	}
+	return n, true
+}
+
 // ExtractDeclaredAspect returns the topic the critic wrote on the
 // "aspect:" line of its markdown reply, or "" if the line is missing
 // or empty. Used by the round loop to capture the topic the critic
@@ -150,9 +165,10 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 	maxSeq := 0
 	for _, sid := range priorAttackIDs {
 		if m := idRE.FindStringSubmatch(sid); m != nil {
-			if ci, _ := strconv.Atoi(m[1]); ci == criticIndex {
-				seq, _ := strconv.Atoi(m[2])
-				maxSeq = max(maxSeq, seq)
+			if ci, ok := parseIDPart(m[1]); ok && ci == criticIndex {
+				if seq, ok := parseIDPart(m[2]); ok {
+					maxSeq = max(maxSeq, seq)
+				}
 			}
 		}
 	}
@@ -216,9 +232,12 @@ func Parse(raw string, expectedAspect string, criticIndex, round int, priorAttac
 		idMatch := idRE.FindStringSubmatch(id)
 		seq := 0
 		if idMatch != nil {
-			ci, _ := strconv.Atoi(idMatch[1])
-			s, _ := strconv.Atoi(idMatch[2])
-			if ci == criticIndex {
+			// An out-of-range part leaves seq at 0, so the section is
+			// renamed to a fresh id below instead of keeping an id that
+			// would overflow the next sequence number.
+			ci, okCI := parseIDPart(idMatch[1])
+			s, okSeq := parseIDPart(idMatch[2])
+			if okCI && okSeq && ci == criticIndex {
 				seq = s
 			}
 		}

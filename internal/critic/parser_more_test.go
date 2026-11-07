@@ -172,3 +172,34 @@ func TestIsStyleShaped(t *testing.T) {
 		})
 	}
 }
+
+// TestParseBoundsHugeIDSequence covers B13: an out-of-range or near-overflow
+// sequence is renamed to a small fresh id and never leaves a negative one.
+func TestParseBoundsHugeIDSequence(t *testing.T) {
+	atk := func(id string) string {
+		return "## " + id + " [a.go:1]\n\nclaim: panic here\n\nexpected violation: panic\n\nreproduction:\n```\ngo test\n```\n\n"
+	}
+	raw := "# Critic 1 - round 1 attacks\n\naspect: security\n\n" +
+		atk("c1-99999999999999999999") + atk("c1-9223372036854775807") + atk("c1-2")
+	got, _, err := Parse(raw, "security", 1, 1, nil, ParseOption{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("attacks: got %d, want 3", len(got))
+	}
+	seen := map[string]bool{}
+	for _, a := range got {
+		if strings.Contains(a.AttackID, "--") || strings.Contains(a.AttackID, "99999") || strings.Contains(a.AttackID, "922337") {
+			t.Errorf("unbounded id kept: %s", a.AttackID)
+		}
+		if seen[a.AttackID] {
+			t.Errorf("duplicate id %s", a.AttackID)
+		}
+		seen[a.AttackID] = true
+	}
+	next, _, err := Parse("# Critic 1 - round 3 attacks\n\naspect: security\n\n"+atk("c1-3"), "security", 1, 3, []string{"c1-2"}, ParseOption{})
+	if err != nil || len(next) != 1 || next[0].AttackID != "c1-3" {
+		t.Errorf("sequence after the bounded ids: %v %v", next, err)
+	}
+}
