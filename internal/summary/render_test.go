@@ -130,3 +130,26 @@ func TestOneLineCollapsesEveryWhitespace(t *testing.T) {
 		t.Errorf("got %q, want %q", got, "a b c d e")
 	}
 }
+
+// TestLeafBoundsAspectAndLocation: the aspect and location come from the
+// critic's reply too, so they get the same one-line bound as the claim; a
+// huge location must not fill summary.md.
+func TestLeafBoundsAspectAndLocation(t *testing.T) {
+	r := ledger.Record{
+		AttackID: "c1-1", Aspect: "security\n# injected heading", Location: strings.Repeat("x", 5000) + ".go:1",
+		Claim: "claim", Status: ledger.StatusUnresolved,
+	}
+	for name, write := range map[string]func(*strings.Builder, ledger.Record){
+		"headline": writeHeadline, "unresolved": writeUnresolved,
+	} {
+		var b strings.Builder
+		write(&b, r)
+		first, _, _ := strings.Cut(b.String(), "\n")
+		if strings.Contains(b.String(), "\n# injected") {
+			t.Errorf("%s: the aspect's newline broke the list item", name)
+		}
+		if n := len([]rune(first)); n > 2*maxLineRunes+40 {
+			t.Errorf("%s: first line is %d runes", name, n)
+		}
+	}
+}

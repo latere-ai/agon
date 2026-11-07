@@ -172,6 +172,10 @@ type Summary struct {
 	USD         float64
 	WallSeconds int
 	Unresolved  int
+	// CostCap is the token budget the run was configured with (zero means
+	// unbounded); EndedAt is when the run finished its last round.
+	CostCap int
+	EndedAt time.Time
 }
 
 // ForkOutcome carries the per-fork termination + last round. Topic is
@@ -226,7 +230,7 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	det := &Detector{}
 	cost := NewCostMeter(e.CostCap)
 	start := time.Now()
-	sum := &Summary{Sess: e.Sess, Termination: TermSteadyState}
+	sum := &Summary{Sess: e.Sess, Termination: TermSteadyState, CostCap: e.CostCap}
 
 	for forkIdx := 1; forkIdx <= e.ForkCount; forkIdx++ {
 		if ctx.Err() != nil {
@@ -256,7 +260,9 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	for id, r := range agg {
 		if r.Status == ledger.StatusOpen || r.Status == ledger.StatusRebutted {
 			r.Status = ledger.StatusUnresolved
-			_ = ledger.Append(e.Sess, r)
+			if err := ledger.Append(e.Sess, r); err != nil {
+				return nil, fmt.Errorf("record %s as unresolved: %w", id, err)
+			}
 			agg[id] = r
 		}
 	}
@@ -270,7 +276,8 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 		sum.Usage.Add(f.Usage.Total)
 		sum.USD += f.Usage.TotalUSD
 	}
-	sum.WallSeconds = int(time.Since(start).Seconds())
+	sum.EndedAt = time.Now().UTC()
+	sum.WallSeconds = int(sum.EndedAt.Sub(start).Seconds())
 	return sum, nil
 }
 
@@ -345,9 +352,16 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 				fmtUsage(res.usage, res.usd))
 			hist = append(hist, ForkHistory{
 				Round: round, NewAttacks: stats.KeptIntroduce, ReAttacks: stats.KeptReAttack,
-				Withdrawn:     stats.KeptWithdraw,
-				MalformedFlag: stats.Total > 0 && (stats.KeptIntroduce+stats.KeptReAttack+stats.KeptWithdraw) == 0,
+				Withdrawn: stats.KeptWithdraw,
+				// A reply that cannot be parsed at all counts the same as one
+				// whose sections are all dropped: spec 026 ends the fork
+				// after two such rounds in a row.
+				MalformedFlag: res.malformed || (stats.Total > 0 && (stats.KeptIntroduce+stats.KeptReAttack+stats.KeptWithdraw) == 0),
 			})
+			if res.malformed {
+				e.progf("[adversarial] fork %d/%d %s: T%d critic reply is malformed (no attack header); raw reply kept in the round file",
+					forkIdx, e.ForkCount, forkLabel(out.Topic), turnOf(round))
+			}
 			priorIDs = res.priorIDs
 			if det.MalformedTwice(hist) {
 				runStop = TermMalformedOutput
@@ -362,8 +376,11 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 			// Proposer round.
 			prefix := fmt.Sprintf("[adversarial] fork %d/%d %s: T%d proposer", forkIdx, e.ForkCount, forkLabel(out.Topic), turnOf(round))
 			e.progf("%s running...", prefix)
-			pointer := fmt.Sprintf("Some comments at @forks/critic-%d/rounds/r%d-critic.md. Please resolve or respond. If you disagree, please raise it.",
-				forkIdx, round-1)
+			// The proposer runs with the repository as its working
+			// directory, so the pointer names the round file by absolute
+			// path; a session-relative path would resolve to nothing there.
+			criticFile := e.Sess.Path(filepath.Join("forks", fmt.Sprintf("critic-%d", forkIdx), "rounds", fmt.Sprintf("r%d-critic.md", round-1)))
+			pointer := fmt.Sprintf("Some comments at @%s. Please resolve or respond. If you disagree, please raise it.", criticFile)
 			var pr *agent.ProposerResult
 			var err error
 			// Snapshot the cwd's already-modified file set before the
@@ -380,9 +397,11 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 				pr, err = e.Proposer.FirstRound(ctx, pointer)
 				if err == nil {
 					forkID = pr.ForkID
-					_ = state.WriteProposerState(e.Sess, forkIdx, &state.ProposerState{
+					if werr := state.WriteProposerState(e.Sess, forkIdx, &state.ProposerState{
 						Agent: "claude", ForkSessionID: forkID,
-					})
+					}); werr != nil {
+						return out, "", fmt.Errorf("write proposer state for fork %d: %w", forkIdx, werr)
+					}
 				}
 			} else {
 				pr, err = e.Proposer.NextRound(ctx, forkID, pointer)
@@ -423,12 +442,20 @@ func (e *Engine) runFork(ctx context.Context, forkIdx int, priorTopics []string,
 			if err := state.WriteRound(e.Sess, forkIdx, round, state.RoleProposer, []byte(body.String())); err != nil {
 				return out, "", err
 			}
-			_ = state.AppendTranscript(e.Sess, &state.TranscriptRecord{
+			if err := state.AppendTranscript(e.Sess, &state.TranscriptRecord{
 				TS: time.Now().UTC(), Fork: forkIdx, Round: round, Role: "proposer",
 				Path: filepath.Join("forks", fmt.Sprintf("critic-%d", forkIdx), "rounds", fmt.Sprintf("r%d-proposer.md", round)),
 				MS:   int(pr.Duration.Milliseconds()),
-			})
-			conceded, rebutted := updateLedgerFromDefense(e.Sess, pr.Response, pr.ChangedFiles, round)
+			}); err != nil {
+				return out, "", fmt.Errorf("append transcript: %w", err)
+			}
+			conceded, rebutted, ignored, err := updateLedgerFromDefense(e.Sess, forkIdx, pr.Response, pr.ChangedFiles, round)
+			if err != nil {
+				return out, "", err
+			}
+			for _, id := range ignored {
+				e.progf("[adversarial] fork %d/%d: ignored defense of %s: no such attack in this fork", forkIdx, e.ForkCount, id)
+			}
 			e.progf("[adversarial] fork %d/%d %s: T%d proposer done in %s (conceded=%d, rebutted=%d, files=%d) %s",
 				forkIdx, e.ForkCount, forkLabel(out.Topic), turnOf(round), fmtDur(time.Since(roundStart)),
 				conceded, rebutted, len(pr.ChangedFiles), fmtUsage(pr.Usage, pr.USD))
@@ -522,6 +549,8 @@ type criticRoundResult struct {
 	usd           float64
 	priorIDs      []string
 	declaredTopic string
+	// malformed is set when the reply had no attack document at all.
+	malformed bool
 }
 
 func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Aspect, forkIdx, round int, priorIDs []string) (criticRoundResult, critic.ParseStats, error) {
@@ -561,9 +590,27 @@ func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Asp
 	if expected == "" || expected == "auto" {
 		expected = declared
 	}
+	tokens := res.Tokens
+	if tokens == 0 {
+		tokens = EstimateTokens(in.SystemPrompt + res.Markdown)
+	}
+	roundRel := filepath.Join("forks", fmt.Sprintf("critic-%d", forkIdx), "rounds", fmt.Sprintf("r%d-critic.md", round))
 	attacks, stats, err := critic.Parse(res.Markdown, expected, forkIdx, round, priorIDs, critic.ParseOption{AllowStyleAttacks: e.AllowStyleAttacks})
 	if err != nil {
-		return criticRoundResult{tokens: res.Tokens, usage: res.Usage, usd: res.USD, declaredTopic: declared}, stats, err
+		// The reply is not an attack document. Keep it verbatim as the
+		// round file so the proposer's pointer and a reader of the session
+		// still find something, and report the round as malformed; the
+		// loop decides whether this is the second one in a row.
+		if werr := state.WriteRound(e.Sess, forkIdx, round, state.RoleCritic, []byte(res.Markdown)); werr != nil {
+			return criticRoundResult{}, stats, werr
+		}
+		if terr := e.appendCriticTranscript(forkIdx, round, roundRel, res.Duration); terr != nil {
+			return criticRoundResult{}, stats, terr
+		}
+		return criticRoundResult{
+			tokens: tokens, usage: res.Usage, usd: res.USD, declaredTopic: declared,
+			priorIDs: priorIDs, malformed: true,
+		}, stats, nil
 	}
 	renderTopic := expected
 	if renderTopic == "" {
@@ -571,7 +618,7 @@ func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Asp
 	}
 	rendered := critic.Render(forkIdx, round, renderTopic, attacks)
 	if err := state.WriteRound(e.Sess, forkIdx, round, state.RoleCritic, rendered); err != nil {
-		return criticRoundResult{tokens: res.Tokens, usage: res.Usage, usd: res.USD, declaredTopic: declared}, stats, err
+		return criticRoundResult{}, stats, err
 	}
 	for _, at := range attacks {
 		st := ledger.StatusOpen
@@ -579,7 +626,7 @@ func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Asp
 			st = ledger.StatusWithdrawn
 		}
 		ri := at.RoundIntroduced
-		_ = ledger.Append(e.Sess, ledger.Record{
+		if err := ledger.Append(e.Sess, ledger.Record{
 			AttackID: at.AttackID, CriticIndex: forkIdx, Aspect: expected,
 			RoundIntroduced:   ifNonZero(ri),
 			Location:          at.Location,
@@ -589,16 +636,12 @@ func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Asp
 			RoundLastTouched:  round,
 			Status:            st,
 			ReAttacked:        at.Disposition == critic.DispReAttack,
-		})
+		}); err != nil {
+			return criticRoundResult{}, stats, fmt.Errorf("record %s: %w", at.AttackID, err)
+		}
 	}
-	_ = state.AppendTranscript(e.Sess, &state.TranscriptRecord{
-		TS: time.Now().UTC(), Fork: forkIdx, Round: round, Role: "critic",
-		Path: filepath.Join("forks", fmt.Sprintf("critic-%d", forkIdx), "rounds", fmt.Sprintf("r%d-critic.md", round)),
-		MS:   int(res.Duration.Milliseconds()),
-	})
-	tokens := res.Tokens
-	if tokens == 0 {
-		tokens = EstimateTokens(in.SystemPrompt + res.Markdown)
+	if err := e.appendCriticTranscript(forkIdx, round, roundRel, res.Duration); err != nil {
+		return criticRoundResult{}, stats, err
 	}
 	usage := res.Usage
 	// Compute new priorIDs as the union of priorIDs + new ids (excl. withdrawals).
@@ -617,6 +660,16 @@ func (e *Engine) criticRound(ctx context.Context, cri agent.Critic, a critic.Asp
 	return criticRoundResult{tokens: tokens, usage: usage, usd: res.USD, priorIDs: out, declaredTopic: declared}, stats, nil
 }
 
+func (e *Engine) appendCriticTranscript(forkIdx, round int, rel string, d time.Duration) error {
+	if err := state.AppendTranscript(e.Sess, &state.TranscriptRecord{
+		TS: time.Now().UTC(), Fork: forkIdx, Round: round, Role: "critic",
+		Path: rel, MS: int(d.Milliseconds()),
+	}); err != nil {
+		return fmt.Errorf("append transcript: %w", err)
+	}
+	return nil
+}
+
 func ifNonZero(v int) *int {
 	if v == 0 {
 		return nil
@@ -624,20 +677,35 @@ func ifNonZero(v int) *int {
 	return &v
 }
 
-func updateLedgerFromDefense(sess *state.Session, response string, changed []string, round int) (conceded, rebutted int) {
-	for _, m := range defenseLineRE.FindAllStringSubmatch(response, -1) {
+// updateLedgerFromDefense records the proposer's concessions and rebuttals.
+// A defense only counts for an attack this fork's critic introduced: an id no
+// critic raised, or one raised by another fork, is returned in ignored and
+// leaves the ledger alone.
+func updateLedgerFromDefense(sess *state.Session, forkIdx int, response string, changed []string, round int) (conceded, rebutted int, ignored []string, err error) {
+	matches := defenseLineRE.FindAllStringSubmatch(response, -1)
+	if len(matches) == 0 {
+		return 0, 0, nil, nil
+	}
+	known, err := ledger.Aggregate(sess)
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("read ledger for defense: %w", err)
+	}
+	for _, m := range matches {
 		verb, id := strings.ToLower(m[1]), m[2]
-		var st ledger.Status
-		switch verb {
-		case "concede":
-			st = ledger.StatusConceded
-			conceded++
-		case "rebut":
-			st = ledger.StatusRebutted
-			rebutted++
-		case "push-back":
+		if verb == "push-back" {
 			// Stays open; orchestrator currently does not track count.
 			continue
+		}
+		if cur, ok := known[id]; !ok || cur.CriticIndex != forkIdx {
+			ignored = append(ignored, id)
+			continue
+		}
+		st := ledger.StatusRebutted
+		if verb == "concede" {
+			st = ledger.StatusConceded
+			conceded++
+		} else {
+			rebutted++
 		}
 		rec := ledger.Record{
 			AttackID: id, RoundLastTouched: round, Status: st,
@@ -645,7 +713,9 @@ func updateLedgerFromDefense(sess *state.Session, response string, changed []str
 		if st == ledger.StatusConceded {
 			rec.ConcessionFiles = append([]string(nil), changed...)
 		}
-		_ = ledger.Append(sess, rec)
+		if err := ledger.Append(sess, rec); err != nil {
+			return conceded, rebutted, ignored, fmt.Errorf("record defense of %s: %w", id, err)
+		}
 	}
-	return conceded, rebutted
+	return conceded, rebutted, ignored, nil
 }

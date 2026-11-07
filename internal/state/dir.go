@@ -24,7 +24,9 @@ type Session struct {
 	StartedAt   time.Time
 }
 
-// NewSession creates the session folder skeleton:
+// NewSession creates the session folder skeleton. stateDirAbs is resolved
+// with filepath.Abs, so Root and every path built from it stay valid after
+// the process changes its working directory:
 //
 //	sessions/<id>/
 //	sessions/<id>/forks/critic-N/         for N in 1..forkCount
@@ -32,6 +34,10 @@ type Session struct {
 func NewSession(stateDirAbs string, forkCount int, now time.Time) (*Session, error) {
 	if forkCount < 1 {
 		return nil, errors.New("forkCount must be ≥ 1")
+	}
+	stateDirAbs, err := filepath.Abs(stateDirAbs)
+	if err != nil {
+		return nil, fmt.Errorf("resolve state dir: %w", err)
 	}
 	id := newSessionID(now)
 	root := filepath.Join(stateDirAbs, "sessions", id)

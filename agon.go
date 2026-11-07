@@ -87,7 +87,7 @@ type Summary struct {
 	// "interrupted", or "malformed-output".
 	Termination string
 	Forks       []ForkOutcome
-	Unresolved  int    // attacks not conceded or rebutted at run end
+	Unresolved  int    // attacks still open or rebutted at run end; a rebuttal leaves the dispute open
 	Headline    string // claim text of highest-contention unresolved attack
 	SessionDir  string // absolute path to the sessions/<id>/ folder
 	USD         float64

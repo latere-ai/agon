@@ -6,6 +6,8 @@ package agon
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
 	"time"
 
 	"latere.ai/x/agon/internal/agent"
@@ -50,6 +52,15 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	if e.StateDir == "" {
 		return nil, errors.New("adversarial: StateDir is required")
 	}
+	// A nil Proposer or NewCritic would panic deep in the loop, after a
+	// session directory already exists; reject them before anything is
+	// written.
+	if e.Proposer == nil {
+		return nil, errors.New("adversarial: Proposer is required")
+	}
+	if e.NewCritic == nil {
+		return nil, errors.New("adversarial: NewCritic is required")
+	}
 	forkCount := max(e.ForkCount, 1)
 	// An unset MaxRounds would otherwise make the per-fork loop run zero
 	// rounds and report a debate that never happened. CostCap gets no such
@@ -60,6 +71,12 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	}
 	sess, err := state.NewSession(e.StateDir, forkCount, time.Now())
 	if err != nil {
+		return nil, err
+	}
+
+	// Record what is being reviewed before the first agent call, so a run
+	// that dies midway still shows its task and diff.
+	if err := writeStart(sess, e, forkCount, maxRounds); err != nil {
 		return nil, err
 	}
 
@@ -86,7 +103,10 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	}
 
 	// Compute headline from ledger aggregate.
-	agg, _ := ledger.Aggregate(sess)
+	agg, err := ledger.Aggregate(sess)
+	if err != nil {
+		return nil, fmt.Errorf("adversarial: read attack ledger: %w", err)
+	}
 	records := make([]ledger.Record, 0, len(agg))
 	for _, r := range agg {
 		records = append(records, r)
@@ -98,11 +118,12 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 
 	// Persist the session's terminal artifacts (summary.md + end.json) so
 	// embedders get a complete on-disk record: the token usage, termination,
-	// and attack stats. Best-effort: a write failure must not discard a
-	// completed debate. Without this the run leaves no end.json, so callers
-	// could not tell a finished run from a running one and saw zero token
-	// usage.
-	_ = summary.Persist(sumRes, agg, 0)
+	// and attack stats. end.json marks a finished run (spec 027), so a failed
+	// write is an error: returning a summary for a session a reader would
+	// still take for a running one would be wrong.
+	if err := summary.Persist(sumRes, agg, summary.Decide(sumRes).ExitCode); err != nil {
+		return nil, fmt.Errorf("adversarial: persist session summary: %w", err)
+	}
 
 	out := &Summary{
 		Termination: string(sumRes.Termination),
@@ -122,6 +143,33 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	return out, nil
 }
 
+// writeStart records the run's inputs: start.json (task, budgets, start time)
+// and the reviewed diff, both once per run.
+func writeStart(sess *state.Session, e *Engine, forkCount, maxRounds int) error {
+	if err := state.WriteRunDiff(sess, e.DiffPatch); err != nil {
+		return fmt.Errorf("adversarial: write reviewed diff: %w", err)
+	}
+	start := &state.StartFile{
+		SessionID:   sess.ID,
+		StartedAt:   sess.StartedAt.UTC(),
+		TaskContext: e.TaskContext,
+		Diff:        state.DiffSnap{PatchPath: "diff.patch"},
+		Config: state.ConfigSnap{
+			MaxTurn:   maxRounds,
+			SideCount: forkCount,
+			CostCap:   e.CostCap,
+		},
+		RootSession: state.RootSession{Cwd: e.Cwd},
+		GoVersion:   runtime.Version(),
+	}
+	if err := state.WriteStart(sess, start); err != nil {
+		return fmt.Errorf("adversarial: write start.json: %w", err)
+	}
+	return nil
+}
+
+var errNilProposerResult = errors.New("adversarial: Proposer returned a nil result")
+
 // proposerBridge adapts the public Proposer to internal/round.Proposer.
 type proposerBridge struct{ p Proposer }
 
@@ -130,6 +178,9 @@ func (b *proposerBridge) FirstRound(ctx context.Context, pointer string) (*agent
 	if err != nil {
 		return nil, err
 	}
+	if res == nil {
+		return nil, errNilProposerResult
+	}
 	return toInternalProposerResult(res), nil
 }
 
@@ -137,6 +188,9 @@ func (b *proposerBridge) NextRound(ctx context.Context, forkID, pointer string) 
 	res, err := b.p.NextRound(ctx, forkID, pointer)
 	if err != nil {
 		return nil, err
+	}
+	if res == nil {
+		return nil, errNilProposerResult
 	}
 	return toInternalProposerResult(res), nil
 }
@@ -156,6 +210,9 @@ func toInternalProposerResult(r *ProposerResult) *agent.ProposerResult {
 type criticBridge struct{ c Critic }
 
 func (b *criticBridge) Round(ctx context.Context, in agent.CriticInput) (*agent.CriticResult, error) {
+	if b.c == nil {
+		return nil, fmt.Errorf("adversarial: NewCritic returned nil for fork %d", in.CriticIndex)
+	}
 	pubIn := CriticInput{
 		AspectName:   in.Aspect.Name,
 		SystemPrompt: in.SystemPrompt,
@@ -175,6 +232,9 @@ func (b *criticBridge) Round(ctx context.Context, in agent.CriticInput) (*agent.
 	res, err := b.c.Round(ctx, pubIn)
 	if err != nil {
 		return nil, err
+	}
+	if res == nil {
+		return nil, errors.New("adversarial: Critic returned a nil result")
 	}
 	return &agent.CriticResult{
 		Markdown: res.Markdown,

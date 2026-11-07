@@ -8,6 +8,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"latere.ai/x/pkg/sanitize"
 
@@ -123,14 +124,14 @@ func writeHeadline(b *strings.Builder, r ledger.Record) {
 	if loc == "" {
 		loc = "?"
 	}
-	fmt.Fprintf(b, "- [%s/%s] %s\n", r.Aspect, loc, oneLine(r.Claim))
+	fmt.Fprintf(b, "- [%s/%s] %s\n", oneLine(r.Aspect), oneLine(loc), oneLine(r.Claim))
 	fmt.Fprintf(b, "  - Critic: %s\n", oneLine(r.ExpectedViolation))
 	fmt.Fprintf(b, "  - **Stake**: %s\n", oneLine(r.Reproduction))
 	fmt.Fprintf(b, "  - Contention: %d (re-attacked: %v)\n", Score(r), r.ReAttacked)
 }
 
 func writeUnresolved(b *strings.Builder, r ledger.Record) {
-	fmt.Fprintf(b, "- [%s/%s] %s\n", r.Aspect, r.Location, oneLine(r.Claim))
+	fmt.Fprintf(b, "- [%s/%s] %s\n", oneLine(r.Aspect), oneLine(r.Location), oneLine(r.Claim))
 	fmt.Fprintf(b, "  - Stake: %s\n", oneLine(r.Reproduction))
 	fmt.Fprintf(b, "  - Contention: %d\n", Score(r))
 }
@@ -193,7 +194,9 @@ func totalRounds(s *round.Summary) int {
 	return n
 }
 
-// Persist writes summary.md and end.json for a finished run.
+// Persist writes summary.md and end.json for a finished run. exitCode is the
+// surfacing decision's code (see [Decide]); end.json records it so a reader
+// of the session does not have to recompute it.
 func Persist(s *round.Summary, agg map[string]ledger.Record, exitCode int) error {
 	r := &Render{}
 	b, err := r.Bytes(s, agg)
@@ -203,15 +206,26 @@ func Persist(s *round.Summary, agg map[string]ledger.Record, exitCode int) error
 	if err := s.Sess.AtomicWrite("summary.md", b); err != nil {
 		return err
 	}
+	endedAt := s.EndedAt
+	if endedAt.IsZero() {
+		endedAt = time.Now().UTC()
+	}
+	rounds := make([]int, 0, len(s.Forks))
+	for _, f := range s.Forks {
+		rounds = append(rounds, f.Rounds)
+	}
 	end := &state.EndFile{
 		SessionID:   s.Sess.ID,
+		EndedAt:     endedAt,
 		Termination: state.Termination{Reason: string(s.Termination)},
 		Stats: state.Stats{
-			TotalAttacks: len(agg),
-			ByStatus:     statusCounts(agg),
-			TokensUsed:   s.TokensUsed,
-			TokenUsage:   &s.Usage,
-			WallSeconds:  s.WallSeconds,
+			TotalAttacks:          len(agg),
+			ByStatus:              statusCounts(agg),
+			RoundsExecutedPerFork: rounds,
+			TokensUsed:            s.TokensUsed,
+			TokenUsage:            &s.Usage,
+			CostCap:               s.CostCap,
+			WallSeconds:           s.WallSeconds,
 		},
 		ExitCode:    exitCode,
 		SummaryPath: "summary.md",
