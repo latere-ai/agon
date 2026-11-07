@@ -315,12 +315,16 @@ func (c *ClaudeCritic) Round(ctx context.Context, in CriticInput) (*CriticResult
 	if bin == "" {
 		bin = "claude"
 	}
+	// The prompt goes on stdin, not in argv: it carries the whole diff, and
+	// one argument is capped at 128 KiB on Linux and the whole argv at about
+	// 2 MiB on macOS. `claude -p` reads its prompt from stdin when no prompt
+	// argument is given.
 	prompt := AssemblePrompt(in)
 	var args []string
 	if c.Verbose {
-		args = []string{"--output-format", "stream-json", "--verbose", "--print", prompt}
+		args = []string{"--output-format", "stream-json", "--verbose", "--print"}
 	} else {
-		args = []string{"--output-format", "json", "--print", prompt}
+		args = []string{"--output-format", "json", "--print"}
 	}
 	args = append(args, "--disallowedTools", criticDisallowedTools)
 	if in.Model != "" {
@@ -328,6 +332,7 @@ func (c *ClaudeCritic) Round(ctx context.Context, in CriticInput) (*CriticResult
 	}
 	run := Run{
 		Bin: bin, Args: args, Cwd: in.Cwd, Env: CleanEnv(), Deadline: in.Deadline,
+		Stdin: prompt,
 	}
 	if c.Verbose && c.EventOut != nil {
 		run.OnStdoutLine = func(line []byte) {

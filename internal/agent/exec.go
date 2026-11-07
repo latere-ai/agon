@@ -41,6 +41,11 @@ type Run struct {
 	Env          []string
 	Deadline     time.Duration
 	OnStdoutLine func([]byte)
+
+	// Stdin, when non-empty, is written to the child's standard input. It is
+	// how a prompt too large for one argument reaches the CLI. Empty leaves
+	// stdin on /dev/null.
+	Stdin string
 }
 
 // Result is the outcome of one Exec.
@@ -76,8 +81,11 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 	cmd := exec.CommandContext(callCtx, bin, r.Args...)
 	cmd.Dir = r.Cwd
 	cmd.Env = r.Env
-	// Stdin is left nil: os/exec connects /dev/null, so an agent CLI that
-	// probes stdin sees immediate EOF and never a TTY.
+	// With no Stdin, os/exec connects /dev/null, so an agent CLI that probes
+	// stdin sees immediate EOF and never a TTY.
+	if r.Stdin != "" {
+		cmd.Stdin = strings.NewReader(r.Stdin)
+	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
