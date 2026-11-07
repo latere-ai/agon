@@ -15,6 +15,85 @@ that it sorts above them and `@latest` resolves to it.
 
 ## Unreleased
 
+### Added
+
+- **Each session records what it reviewed.** `start.json` holds the task,
+  the budgets and the start time, and `diff.patch` holds the diff. Both are
+  written before the first agent call, so a run that fails midway still
+  shows its inputs.
+- `input.ValidateSessionID` and `input.ErrInvalidSessionID`, the rule for a
+  Claude Code session id.
+
+### Changed
+
+- **`Engine.Run` returns an error when it cannot write the session.** A
+  failed write of `summary.md`, `end.json`, the attack ledger or the
+  transcript used to be ignored, and the run returned a summary for a
+  session that looked unfinished on disk.
+- **A nil `Proposer`, `NewCritic` or result is an error,** returned before
+  anything is written, instead of a panic.
+- **`input.Compute` needs git 2.24 or newer.** It passes revisions after
+  `--end-of-options`.
+- **Untracked files with a non-ASCII name appear unquoted** in `Diff.Files`
+  and in the patch headers.
+
+### Fixed
+
+- **The proposer can read the critic's comments.** The message to the
+  proposer named the critic's round file relative to the session
+  directory, but the proposer runs in the repository, where that path
+  names nothing. A `claude` proposer then searched for the file and could
+  read the comments of another review. The message now gives the absolute
+  path.
+- **The `claude -p` critic takes a diff of any size.** The prompt, diff
+  included, was one command-line argument, so a large diff failed with
+  `argument list too long` and ended the run. The prompt now goes on
+  standard input.
+- **One critic reply without the attack header no longer ends the run.**
+  It counts as a malformed round and is kept as the round file. Two in a
+  row end the fork with `malformed-output`, as the protocol says.
+- **A large attack stays in the summary.** A ledger line over 4 MiB, such
+  as an attack with a huge location, stopped the reading of the ledger, so
+  that attack and every later one vanished, and the run read clean. The
+  location now counts toward the 64 KiB at which a record moves to its own
+  file, and a ledger that cannot be read is an error.
+- **A long claim shows in the headline.** A claim over 64 KiB moved to its
+  own file and was never read back, so the headline and `summary.md`
+  showed it empty.
+- **`summary.md` keeps the aspect after a defense.** After a concede or a
+  rebut, `[security/a.go:1]` read `[/a.go:1]`.
+- **A defense of an attack the fork did not raise is ignored.** A concede
+  or rebut of an unknown id, or of another fork's attack, added a resolved
+  attack with no claim and counted it in the critic-found-bug rate.
+- **An attack id with a huge number is renamed.** One such id made the
+  next id negative, and the proposer could not answer that attack.
+- **`Summary.SessionDir` is always absolute.** It was relative when
+  `StateDir` was.
+- **`end.json` describes the run.** `ended_at`, `cost_cap` and
+  `rounds_executed_per_fork` are filled in, and `exit_code` is 0 for a
+  clean run, 130 for an interrupted run and 1 otherwise. It was always 0.
+- **`input.Compute` diffs untracked files of any name.** A name with
+  non-ASCII bytes, a quote or a newline made the whole diff fail.
+- The comment on `Summary.Unresolved` says what it counts: attacks still
+  open or rebutted at the end.
+
+### Security
+
+- **A session id cannot leave the projects folder or act as an option.**
+  `input.LocateTranscript` and `input.FindSession` put the id into a path
+  unchecked, so `../../x` read a file outside `~/.claude/projects`, and
+  `claude.NewProposer` passed it to `claude`, where an id starting with
+  `-` reads as an option. An id outside `[A-Za-z0-9_-]`, longer than 128
+  characters or starting with `-` is now refused. This is incompatible
+  for a caller that uses other ids.
+- **A revision cannot act as a git option.** `input.Compute` passed `From`
+  and `To` to git unchecked, so `--output=<file>` made git write a file.
+  A revision that starts with `-` is now refused.
+- **The aspect and location of an attack are bounded in `summary.md`.**
+  They were printed in full, so a critic could fill the file or break its
+  list with a newline. They are now one line of at most 200 characters,
+  like the claim.
+
 ## v0.3.1 - 2026-11-05
 
 ### Fixed
