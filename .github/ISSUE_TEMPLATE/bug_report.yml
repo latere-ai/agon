@@ -1,0 +1,63 @@
+name: Bug report
+description: agon does something it should not, or does not do something it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not report a security vulnerability here. Follow
+        [SECURITY.md](https://github.com/latere-ai/agon/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+      placeholder: |
+        I ran a review with two forks and a cost cap of 50000 tokens. The run kept going after ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: >
+        The shortest program or test that shows the problem, with its
+        output. A fake proposer and critic are usually enough. If the
+        problem needs a real review, attach the files of the session
+        directory that show it, after removing code, diffs and
+        transcripts you do not want to publish.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The module version, from `go list -m latere.ai/x/agon` in your module.
+      placeholder: v0.3.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backends
+      description: The proposer and critic the review used.
+      multiple: true
+      options:
+        - claude.Proposer (a forked Claude Code session)
+        - claude.Critic (claude -p)
+        - critic package (a model call per round)
+        - My own Proposer or Critic
+        - Not applicable
+    validations:
+      required: true
+
+  - type: input
+    id: go
+    attributes:
+      label: Go version and platform
+      description: The output of `go version`.
+      placeholder: go version go1.27.3 darwin/arm64

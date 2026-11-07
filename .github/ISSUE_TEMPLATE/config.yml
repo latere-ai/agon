@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/latere-ai/agon/blob/main/SECURITY.md
+    about: Report it privately, as SECURITY.md says. Do not open an issue for it.
+  - name: API reference
+    url: https://pkg.go.dev/latere.ai/x/agon
+    about: Every exported type and function, with its documentation. If it does not answer your question, file a bug against the documentation.
