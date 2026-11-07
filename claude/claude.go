@@ -49,8 +49,9 @@ func WithProposerReadOnly() ProposerOption {
 
 // NewProposer returns an [agon.Proposer] that drives the
 // implementation-agent clone via `claude --resume <sessionID> --fork-session`.
-// sessionID is the claude session ID produced by the implementation run
-// (Task.SessionID in wallfacer). cwd is the working directory.
+// sessionID is the claude session ID produced by the implementation run,
+// shaped as [latere.ai/x/agon/input.ValidateSessionID] requires. cwd is the
+// working directory.
 func NewProposer(sessionID, cwd string, opts ...ProposerOption) agon.Proposer {
 	p := &agent.ClaudeProposer{
 		RootID:   sessionID,

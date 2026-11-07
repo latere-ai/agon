@@ -12,6 +12,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"latere.ai/x/agon/input"
 )
 
 // ClaudeProposer drives the proposer-clone via claude --resume.
@@ -151,6 +153,9 @@ func (j *claudeJSON) usage() TokenUsage {
 
 // FirstRound creates a fork and processes R1 in one shot.
 func (p *ClaudeProposer) FirstRound(ctx context.Context, pointer string) (*ProposerResult, error) {
+	if err := input.ValidateSessionID(p.RootID); err != nil {
+		return nil, err
+	}
 	args := append([]string{"--resume", p.RootID, "--fork-session"}, p.outputArgs()...)
 	args = append(args, p.toolArgs()...)
 	args = append(args, "--print", pointer)
@@ -162,6 +167,9 @@ func (p *ClaudeProposer) FirstRound(ctx context.Context, pointer string) (*Propo
 
 // NextRound continues an existing fork.
 func (p *ClaudeProposer) NextRound(ctx context.Context, forkID, pointer string) (*ProposerResult, error) {
+	if err := input.ValidateSessionID(forkID); err != nil {
+		return nil, err
+	}
 	args := append([]string{"--resume", forkID}, p.outputArgs()...)
 	args = append(args, p.toolArgs()...)
 	args = append(args, "--print", pointer)

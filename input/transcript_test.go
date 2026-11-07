@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -199,5 +200,44 @@ func TestFindSessionMissingArgs(t *testing.T) {
 	_, _, err := FindSession("", "")
 	if err == nil {
 		t.Error("expected error for empty home/sessionID")
+	}
+}
+
+// TestSessionIDRule pins the shape a session id may have.
+func TestSessionIDRule(t *testing.T) {
+	for _, ok := range []string{"abc", "session-id-123", "0b1c2d3e-4f50-6789-abcd-ef0123456789", "a_b", "_x"} {
+		if err := ValidateSessionID(ok); err != nil {
+			t.Errorf("ValidateSessionID(%q) = %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"", "-x", "--model=x", "../../x", "a/b", `a\b`, "a.b", "a b", "a\x00b", "a\nb", strings.Repeat("a", 129)} {
+		if err := ValidateSessionID(bad); !errors.Is(err, ErrInvalidSessionID) {
+			t.Errorf("ValidateSessionID(%q) = %v, want ErrInvalidSessionID", bad, err)
+		}
+	}
+}
+
+// TestSessionLookupRefusesTraversal: an id with "../" must not reach a file
+// outside ~/.claude/projects.
+func TestSessionLookupRefusesTraversal(t *testing.T) {
+	home := t.TempDir()
+	cwd := "/Users/x/work"
+	dir := filepath.Join(home, ".claude", "projects", EncodeCwd(cwd))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A file the traversal would reach: <home>/x.jsonl.
+	if err := os.WriteFile(filepath.Join(home, "x.jsonl"), []byte(`{"type":"user","message":{"content":"secret"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"../../../x", "../../x", "-x", "a/b"} {
+		p, err := LocateTranscript(home, cwd, id, "")
+		if !errors.Is(err, ErrInvalidSessionID) || p != "" {
+			t.Errorf("LocateTranscript(%q) = %q, %v", id, p, err)
+		}
+		p, _, err = FindSession(home, id)
+		if !errors.Is(err, ErrInvalidSessionID) || p != "" {
+			t.Errorf("FindSession(%q) = %q, %v", id, p, err)
+		}
 	}
 }

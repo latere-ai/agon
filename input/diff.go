@@ -44,16 +44,25 @@ func (e *ErrGit) Error() string {
 //
 //	From="HEAD", To="."  -> working tree vs HEAD (incl. untracked)
 //	From=A,      To=B    -> committed range
+//
+// From and To are revisions, never options: one that starts with "-" is
+// refused with an error, and git gets them after --end-of-options (git 2.24
+// or newer) so it cannot read them as options either.
 func Compute(ctx context.Context, s DiffSpec) (*Diff, error) {
+	for _, ref := range []string{s.From, s.To} {
+		if strings.HasPrefix(ref, "-") {
+			return nil, fmt.Errorf("input: revision %q starts with \"-\"", ref)
+		}
+	}
 	if err := requireGitRepo(ctx, s.Cwd); err != nil {
 		return nil, err
 	}
 
 	var args []string
 	if s.To == "." {
-		args = []string{"diff", "--no-color", s.From}
+		args = []string{"-c", "core.quotepath=false", "diff", "--no-color", "--end-of-options", s.From}
 	} else {
-		args = []string{"diff", "--no-color", s.From, s.To}
+		args = []string{"-c", "core.quotepath=false", "diff", "--no-color", "--end-of-options", s.From, s.To}
 	}
 	tracked, err := runGit(ctx, s.Cwd, args)
 	if err != nil {
@@ -65,16 +74,18 @@ func Compute(ctx context.Context, s DiffSpec) (*Diff, error) {
 
 	// Append synthetic diffs for untracked files when To == "."
 	if s.To == "." {
-		untracked, err := runGit(ctx, s.Cwd, []string{"ls-files", "--others", "--exclude-standard"})
+		// -z: names come NUL-separated and unquoted. Without it git quotes a
+		// name with non-ASCII bytes or a quote, and the quoted form is not a
+		// path.
+		untracked, err := runGit(ctx, s.Cwd, []string{"ls-files", "-z", "--others", "--exclude-standard"})
 		if err != nil {
 			return nil, err
 		}
-		for p := range strings.SplitSeq(strings.TrimSpace(untracked), "\n") {
-			p = strings.TrimSpace(p)
+		for p := range strings.SplitSeq(untracked, "\x00") {
 			if p == "" {
 				continue
 			}
-			synth, err := runGit(ctx, s.Cwd, []string{"diff", "--no-color", "--no-index", "--", "/dev/null", p})
+			synth, err := runGit(ctx, s.Cwd, []string{"-c", "core.quotepath=false", "diff", "--no-color", "--no-index", "--", "/dev/null", p})
 			if err != nil {
 				// git diff --no-index exits 1 (with output) when the files
 				// differ; that is the expected case for an untracked file,

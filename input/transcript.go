@@ -64,7 +64,9 @@ func DecodeCwd(encoded string) string {
 //  1. explicit (when non-empty): used as-is.
 //  2. ~/.claude/projects/<encoded-cwd>/<sessionID>.jsonl
 //
-// Returns ErrTranscriptNotFound when neither path exists.
+// Returns ErrTranscriptNotFound when neither path exists, and
+// ErrInvalidSessionID when sessionID is not shaped like a session id (see
+// ValidateSessionID); explicit is not checked.
 func LocateTranscript(home, cwd, sessionID, explicit string) (string, error) {
 	if explicit != "" {
 		if _, err := os.Stat(explicit); err == nil {
@@ -74,6 +76,9 @@ func LocateTranscript(home, cwd, sessionID, explicit string) (string, error) {
 	}
 	if home == "" || cwd == "" || sessionID == "" {
 		return "", fmt.Errorf("%w: missing home/cwd/sessionID", ErrTranscriptNotFound)
+	}
+	if err := ValidateSessionID(sessionID); err != nil {
+		return "", err
 	}
 	p := filepath.Join(home, ".claude", "projects", EncodeCwd(cwd), sessionID+".jsonl")
 	if _, err := os.Stat(p); err == nil {
@@ -89,10 +94,14 @@ func LocateTranscript(home, cwd, sessionID, explicit string) (string, error) {
 // the caller to compute as a hint.
 //
 // Returns ErrTranscriptNotFound if no project directory contains the
-// session.
+// session, and ErrInvalidSessionID when sessionID is not shaped like a
+// session id (see ValidateSessionID).
 func FindSession(home, sessionID string) (path, encodedSegment string, err error) {
 	if home == "" || sessionID == "" {
 		return "", "", fmt.Errorf("%w: missing home/sessionID", ErrTranscriptNotFound)
+	}
+	if err := ValidateSessionID(sessionID); err != nil {
+		return "", "", err
 	}
 	projects := filepath.Join(home, ".claude", "projects")
 	entries, err := os.ReadDir(projects)
@@ -217,4 +226,41 @@ func ExtractFirstUser(records [][]byte) (string, error) {
 		}
 	}
 	return "", ErrNoUserTurn
+}
+
+// ErrInvalidSessionID is returned for a session id that is not shaped like
+// one. The id becomes a file name and a CLI argument, so anything that could
+// leave its directory or read as an option is refused.
+var ErrInvalidSessionID = errors.New("not a session id")
+
+// maxSessionIDLen bounds a session id. Claude Code ids are 36-character
+// UUIDs; the margin admits other harness ids.
+const maxSessionIDLen = 128
+
+// ValidateSessionID reports whether id is shaped like a Claude Code session
+// id: ASCII letters, digits, "_" and "-", at most 128 characters, and no
+// leading "-". The rule is what keeps an id from naming a path outside the
+// projects directory (no "/", "\\" or ".") and from being read as an option
+// when it is passed to the claude CLI.
+func ValidateSessionID(id string) error {
+	if id == "" || len(id) > maxSessionIDLen || id[0] == '-' {
+		return fmt.Errorf("%w: %q", ErrInvalidSessionID, truncateForError(id))
+	}
+	for i := 0; i < len(id); i++ {
+		c := id[i]
+		ok := c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-'
+		if !ok {
+			return fmt.Errorf("%w: %q", ErrInvalidSessionID, truncateForError(id))
+		}
+	}
+	return nil
+}
+
+// truncateForError keeps an oversized id from filling an error message.
+func truncateForError(s string) string {
+	const limit = 40
+	if len(s) > limit {
+		return s[:limit] + "..."
+	}
+	return s
 }

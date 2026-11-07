@@ -161,3 +161,75 @@ func TestComputeBadRange(t *testing.T) {
 		t.Fatal("expected error from bogus ref")
 	}
 }
+
+// TestComputeRefusesOptionShapedRefs: a ref that starts with "-" would be read
+// by git as an option (--output=FILE writes a file), so Compute refuses it and
+// git never runs.
+func TestComputeRefusesOptionShapedRefs(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	out := filepath.Join(t.TempDir(), "pwned")
+	for _, s := range []DiffSpec{
+		{From: "--output=" + out, To: ".", Cwd: dir},
+		{From: "--output=" + out, To: "HEAD", Cwd: dir},
+		{From: "HEAD", To: "--output=" + out, Cwd: dir},
+		{From: "-U0", To: ".", Cwd: dir},
+	} {
+		if _, err := Compute(context.Background(), s); err == nil {
+			t.Errorf("Compute(%+v): want an error", s)
+		}
+		if _, err := os.Stat(out); err == nil {
+			t.Fatalf("Compute(%+v): git wrote %s", s, out)
+		}
+	}
+}
+
+// TestComputeUntrackedQuotedNames: git quotes names with non-ASCII bytes or a
+// double quote in its plain ls-files output; the diff must still cover them.
+func TestComputeUntrackedQuotedNames(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	names := []string{"café.txt", `say "hi".txt`, "new\nline.txt"}
+	for _, n := range names {
+		if err := os.WriteFile(filepath.Join(dir, n), []byte("one\ntwo\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d, err := Compute(context.Background(), DiffSpec{From: "HEAD", To: ".", Cwd: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.ChangedLines != 2*len(names) {
+		t.Errorf("ChangedLines = %d, want %d; patch:\n%s", d.ChangedLines, 2*len(names), d.Patch)
+	}
+	if !strings.Contains(d.Patch, "caf") || !strings.Contains(d.Patch, "two") {
+		t.Errorf("patch lacks the files:\n%s", d.Patch)
+	}
+}
+
+// TestComputeRevisionRange: a legitimate range still works
+// after the refs are fenced off from options.
+func TestComputeRevisionRange(t *testing.T) {
+	dir := t.TempDir()
+	gitInit(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "f.txt"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", "f.txt"},
+		{"-c", "user.email=t@e.com", "-c", "user.name=t", "commit", "-q", "-m", "f"},
+	} {
+		c := exec.Command("git", args...)
+		c.Dir = dir
+		if b, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, b)
+		}
+	}
+	d, err := Compute(context.Background(), DiffSpec{From: "HEAD~1", To: "HEAD", Cwd: dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d.ChangedLines != 1 || len(d.Files) != 1 || d.Files[0] != "f.txt" {
+		t.Errorf("got %+v", d)
+	}
+}
