@@ -65,7 +65,8 @@ type Record struct {
 // Append writes one transition record to <session>/attacks.jsonl.
 // When the inline body fields are too large, the bodies spill to a
 // sidecar JSON file under forks/critic-<i>/attacks/<id>.json and the
-// inline fields are blanked out on the JSONL line.
+// inline fields (claim, expected violation, reproduction, location) are
+// blanked out on the JSONL line.
 func Append(s *state.Session, r Record) error {
 	if r.Schema == "" {
 		r.Schema = SchemaAttack
@@ -73,12 +74,14 @@ func Append(s *state.Session, r Record) error {
 	if r.TS.IsZero() {
 		r.TS = time.Now().UTC()
 	}
-	bodySize := len(r.Claim) + len(r.ExpectedViolation) + len(r.Reproduction)
+	// Every model-written field counts toward the threshold and spills with
+	// the rest, so no ledger line grows past what Aggregate can scan.
+	bodySize := len(r.Claim) + len(r.ExpectedViolation) + len(r.Reproduction) + len(r.Location)
 	if bodySize > SpillThreshold {
 		if err := spillBody(s, &r); err != nil {
 			return err
 		}
-		r.Claim, r.ExpectedViolation, r.Reproduction = "", "", ""
+		r.Claim, r.ExpectedViolation, r.Reproduction, r.Location = "", "", "", ""
 	}
 	b, err := json.Marshal(r, state.StoredJSON)
 	if err != nil {
@@ -89,10 +92,13 @@ func Append(s *state.Session, r Record) error {
 
 // Aggregate reads attacks.jsonl forward and folds records by attack_id.
 // Later non-zero/non-empty fields supersede earlier ones; final status
-// is the last status seen. Any unparseable line is skipped: the ledger
-// is append-only, so the only realistic corruption is a truncated final
-// line from a crash mid-write, and best-effort aggregation is preferred
-// over failing a run on a single bad line.
+// is the last status seen. Spilled bodies are read back, so every record
+// returned carries its full claim. Any unparseable line is skipped: the
+// ledger is append-only, so the only realistic corruption is a truncated
+// final line from a crash mid-write, and best-effort aggregation is
+// preferred over failing a run on a single bad line. A line the scanner
+// cannot read at all, or a side-car that cannot be read back, is an error:
+// silently dropping it would hide attacks.
 func Aggregate(s *state.Session) (map[string]Record, error) {
 	path := s.Path("attacks.jsonl")
 	f, err := os.Open(path)
@@ -120,6 +126,16 @@ func Aggregate(s *state.Session) (map[string]Record, error) {
 		}
 		fold(out, r)
 	}
+	if err := sc.Err(); err != nil {
+		return nil, fmt.Errorf("read %s: %w", path, err)
+	}
+	for id, r := range out {
+		full, err := LoadBody(s, r)
+		if err != nil {
+			return nil, fmt.Errorf("load body of %s: %w", id, err)
+		}
+		out[id] = full
+	}
 	return out, nil
 }
 
@@ -132,7 +148,11 @@ func LoadBody(s *state.Session, r Record) (Record, error) {
 	if err != nil {
 		return r, err
 	}
-	r.Claim, r.ExpectedViolation, r.Reproduction = parseSpill(string(b))
+	d := decodeSpill(string(b))
+	r.Claim, r.ExpectedViolation, r.Reproduction = d.Claim, d.ExpectedViolation, d.Reproduction
+	if d.Location != "" {
+		r.Location = d.Location
+	}
 	return r, nil
 }
 
@@ -193,8 +213,13 @@ func fold(out map[string]Record, in Record) {
 		cur.BodyPath = in.BodyPath
 	}
 	cur.TS = in.TS
-	cur.Aspect = in.Aspect
-	cur.CriticIndex = in.CriticIndex
+	// Defense records carry neither: keep what the attack introduced.
+	if in.Aspect != "" {
+		cur.Aspect = in.Aspect
+	}
+	if in.CriticIndex != 0 {
+		cur.CriticIndex = in.CriticIndex
+	}
 	out[in.AttackID] = cur
 }
 
@@ -207,12 +232,14 @@ type spillDoc struct {
 	Claim             string `json:"claim"`
 	ExpectedViolation string `json:"expected_violation"`
 	Reproduction      string `json:"reproduction"`
+	Location          string `json:"location,omitempty"`
 }
 
 func spillBody(s *state.Session, r *Record) error {
 	rel := filepath.Join("forks", fmt.Sprintf("critic-%d", r.CriticIndex), "attacks", r.AttackID+".json")
 	body, err := json.Marshal(spillDoc{
 		Claim: r.Claim, ExpectedViolation: r.ExpectedViolation, Reproduction: r.Reproduction,
+		Location: r.Location,
 	}, state.StoredJSON)
 	if err != nil {
 		return err
@@ -225,10 +252,22 @@ func spillBody(s *state.Session, r *Record) error {
 }
 
 func parseSpill(b string) (claim, exp, repro string) {
+	d := decodeSpill(b)
+	return d.Claim, d.ExpectedViolation, d.Reproduction
+}
+
+// decodeSpill reads a side-car in either the JSON shape or the legacy
+// markdown shape.
+func decodeSpill(b string) spillDoc {
 	var d spillDoc
 	if err := json.Unmarshal([]byte(b), &d); err == nil {
-		return d.Claim, d.ExpectedViolation, d.Reproduction
+		return d
 	}
+	claim, exp, repro := parseMarkdownSpill(b)
+	return spillDoc{Claim: claim, ExpectedViolation: exp, Reproduction: repro}
+}
+
+func parseMarkdownSpill(b string) (claim, exp, repro string) {
 	// Backward-compat: older side-cars used "## "-delimited markdown.
 	sections := splitOnHeader(b, "## ")
 	for _, sec := range sections {

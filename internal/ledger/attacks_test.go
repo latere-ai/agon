@@ -4,6 +4,7 @@
 package ledger
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -77,8 +78,15 @@ func TestBodySpill(t *testing.T) {
 	if r.BodyPath == "" {
 		t.Error("expected body_path set after spill")
 	}
-	if r.Claim != "" {
-		t.Error("inline claim should be blanked when spilled")
+	if r.Claim != big {
+		t.Error("Aggregate should read the spilled claim back")
+	}
+	line, err := os.ReadFile(s.Path("attacks.jsonl"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(line), big) {
+		t.Error("inline claim should be blanked on the ledger line when spilled")
 	}
 	loaded, err := LoadBody(s, r)
 	if err != nil {
