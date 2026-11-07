@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"time"
 
+	"latere.ai/x/agon/input"
 	"latere.ai/x/agon/internal/agent"
 	"latere.ai/x/agon/internal/ledger"
 	"latere.ai/x/agon/internal/round"
@@ -60,6 +61,11 @@ func (e *Engine) Run(ctx context.Context) (*Summary, error) {
 	}
 	if e.NewCritic == nil {
 		return nil, errors.New("adversarial: NewCritic is required")
+	}
+	// Every critic round sends the whole diff, so one over the cap is
+	// refused before anything is written or any agent runs.
+	if len(e.DiffPatch) > input.MaxDiffBytes {
+		return nil, fmt.Errorf("adversarial: %w: it is %d bytes", input.ErrDiffTooLarge, len(e.DiffPatch))
 	}
 	forkCount := max(e.ForkCount, 1)
 	// An unset MaxRounds would otherwise make the per-fork loop run zero

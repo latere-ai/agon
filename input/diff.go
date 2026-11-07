@@ -29,6 +29,15 @@ type Diff struct {
 // ErrNotGitRepo is returned when Cwd is not inside a git work tree.
 var ErrNotGitRepo = errors.New("not a git repo")
 
+// MaxDiffBytes is the largest diff agon reviews: 4 MiB. Each critic round
+// sends the whole diff in one prompt, and 4 MiB is about the most text a
+// model with a context of a million tokens can hold. The largest of about
+// 20,000 commits measured across Latere's code repositories was 3.0 MB.
+const MaxDiffBytes = 4 << 20
+
+// ErrDiffTooLarge is returned for a diff over MaxDiffBytes.
+var ErrDiffTooLarge = fmt.Errorf("the diff is larger than %d MiB", MaxDiffBytes>>20)
+
 // ErrGit wraps an underlying git invocation failure.
 type ErrGit struct {
 	Args   []string
@@ -64,7 +73,7 @@ func Compute(ctx context.Context, s DiffSpec) (*Diff, error) {
 	} else {
 		args = []string{"-c", "core.quotepath=false", "diff", "--no-color", "--end-of-options", s.From, s.To}
 	}
-	tracked, err := runGit(ctx, s.Cwd, args)
+	tracked, err := runGit(ctx, s.Cwd, args, MaxDiffBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +86,7 @@ func Compute(ctx context.Context, s DiffSpec) (*Diff, error) {
 		// -z: names come NUL-separated and unquoted. Without it git quotes a
 		// name with non-ASCII bytes or a quote, and the quoted form is not a
 		// path.
-		untracked, err := runGit(ctx, s.Cwd, []string{"ls-files", "-z", "--others", "--exclude-standard"})
+		untracked, err := runGit(ctx, s.Cwd, []string{"ls-files", "-z", "--others", "--exclude-standard"}, MaxDiffBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +94,7 @@ func Compute(ctx context.Context, s DiffSpec) (*Diff, error) {
 			if p == "" {
 				continue
 			}
-			synth, err := runGit(ctx, s.Cwd, []string{"-c", "core.quotepath=false", "diff", "--no-color", "--no-index", "--", "/dev/null", p})
+			synth, err := runGit(ctx, s.Cwd, []string{"-c", "core.quotepath=false", "diff", "--no-color", "--no-index", "--", "/dev/null", p}, MaxDiffBytes-patch.Len())
 			if err != nil {
 				// git diff --no-index exits 1 (with output) when the files
 				// differ; that is the expected case for an untracked file,
@@ -114,7 +123,7 @@ func Trivial(d *Diff, threshold int) bool {
 }
 
 func requireGitRepo(ctx context.Context, cwd string) error {
-	out, err := runGit(ctx, cwd, []string{"rev-parse", "--is-inside-work-tree"})
+	out, err := runGit(ctx, cwd, []string{"rev-parse", "--is-inside-work-tree"}, MaxDiffBytes)
 	if err != nil {
 		return ErrNotGitRepo
 	}
@@ -124,19 +133,44 @@ func requireGitRepo(ctx context.Context, cwd string) error {
 	return nil
 }
 
-func runGit(ctx context.Context, cwd string, args []string) (string, error) {
+// runGit runs git and returns its stdout, refusing with ErrDiffTooLarge
+// once the output passes limit bytes.
+func runGit(ctx context.Context, cwd string, args []string, limit int) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = cwd
 	cmd.Env = append(cmd.Environ(), "GIT_OPTIONAL_LOCKS=0", "LC_ALL=C")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out := &cappedBuffer{limit: limit}
+	cmd.Stdout = out
+	err := cmd.Run()
+	if out.over {
+		return "", fmt.Errorf("input: %w", ErrDiffTooLarge)
+	}
 	if err != nil {
 		// `git diff --no-index` exits 1 when files differ - that's data,
 		// not failure. The caller decides how to interpret.
-		return string(out), &ErrGit{Args: args, Stderr: stderr.String(), Err: err}
+		return out.buf.String(), &ErrGit{Args: args, Stderr: stderr.String(), Err: err}
 	}
-	return string(out), nil
+	return out.buf.String(), nil
+}
+
+// cappedBuffer keeps at most limit bytes and fails the write that would
+// pass it. The failed write ends the copy from git's stdout and closes the
+// pipe, so git stops as well. It has no ReadFrom, so io.Copy goes through
+// Write and the limit.
+type cappedBuffer struct {
+	buf   bytes.Buffer
+	limit int
+	over  bool
+}
+
+func (b *cappedBuffer) Write(p []byte) (int, error) {
+	if b.buf.Len()+len(p) > b.limit {
+		b.over = true
+		return 0, ErrDiffTooLarge
+	}
+	return b.buf.Write(p)
 }
 
 func analyzePatch(patch string) (int, []string) {
