@@ -2,17 +2,17 @@
 title: Backends
 status: complete
 track: adversarial
-updated: 2026-10-20
+updated: 2026-11-07
 author: changkun
 ---
 
 # Backends
 
-A backend produces the proposer's or critic's text. Adversarial Review ships
-three, behind the [Engine API](024-engine-api.md) interfaces, so an embedder chooses
-the runtime without changing the [protocol](026-protocol.md). The subprocess drivers
-live in `internal/agent`; the public wrappers in
-`claude`, `critic`.
+A backend produces the proposer's or critic's text. The module ships three
+public backends behind the [Engine API](024-engine-api.md) interfaces: a claude
+proposer, a claude critic and a model-call critic. An embedder chooses the
+runtime without changing the [protocol](026-protocol.md). The subprocess drivers
+live in `internal/agent`, and the public wrappers in `claude` and `critic`.
 
 ## Proposer: the claude CLI
 
@@ -29,15 +29,31 @@ Options:
 - `WithProposerDeadline(d)` - per-round call deadline (default 5m).
 - `WithProposerReadOnly()` - disable the mutating tools (Write, Edit, MultiEdit,
   NotebookEdit, Bash). Use it when the proposer shares the embedder's real
-  worktree and must argue and concede without editing it (wallfacer's harness).
+  worktree and must argue and concede without editing it.
+
+The session id is the id of a Claude Code session, so it must be ASCII letters,
+digits, `_` and `-`, at most 128 characters, with no leading `-`
+(`input.ValidateSessionID`). `FirstRound` checks the caller's id and `NextRound`
+checks the fork id that claude returned, before any process starts; a bad id
+returns an error wrapping `input.ErrInvalidSessionID`. The rule keeps an id from
+being read as a CLI option.
+
+The proposer gets a short pointer to the critic's round file on the command
+line. The file is named by its absolute path, because the proposer's working
+directory is the reviewed repository, not the session directory.
 
 ## Critic: the claude and codex CLIs
 
-- `claude.NewCritic(opts...)` invokes `claude -p` - stateless, one
-  call per round, usable as a critic for any task harness.
+- `claude.NewCritic(opts...)` invokes `claude -p`: stateless, one call per
+  round, usable as a critic for any task harness. The prompt, which carries the
+  whole diff, goes on the child's standard input, so its size is not bound by
+  the operating system's argument limits. The critic runs in the engine's `Cwd`
+  with Bash, Write, Edit, MultiEdit and NotebookEdit denied. Other tools, such as
+  Read, Grep, web and MCP tools, are left to the user's Claude Code settings.
 - `internal/agent`'s `CodexCritic` runs `codex exec --sandbox
   read-only --json`. Its read-only sandbox lets it open files the diff does not
-  touch, which the prompt-only critics cannot.
+  touch, which the prompt-only critics cannot. It is internal: no public package
+  constructs it yet (see the roadmap in the [index](README.md)).
 
 The subprocess drivers can stream `stream-json` events so tool and thinking
 activity is visible live while a call runs. The toggle is internal

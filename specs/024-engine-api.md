@@ -2,7 +2,7 @@
 title: Engine API
 status: complete
 track: adversarial
-updated: 2026-09-28
+updated: 2026-11-07
 author: changkun
 ---
 
@@ -42,7 +42,9 @@ transcript and diff helpers are in [Inputs](025-inputs.md).
 - **`Proposer`** - drives the implementation agent across forks.
   `FirstRound(ctx, pointer)` creates the fork and returns its `ForkID`;
   `NextRound(ctx, forkID, pointer)` continues it. `pointer` is the mediator
-  message directing the agent to review the critic's comments.
+  message directing the agent to review the critic's comments; it names the
+  critic's round file by absolute path. The one `Proposer` serves every fork,
+  so it keys its state on the `ForkID` it returned.
 - **`Critic`** - `Round(ctx, CriticInput) (*CriticResult, error)`. Stateless
   across calls; the engine calls it once per critic turn.
 - **`CriticFactory`** = `func(forkIdx int) Critic` - creates one `Critic` per
@@ -58,8 +60,9 @@ transcript and diff helpers are in [Inputs](025-inputs.md).
   `Tokens`, `Usage TokenUsage`, `USD`, `Duration`.
 - **`ProposerResult`** - `ForkID`, `Response`, `Usage`, `USD`, `Duration`.
 - **`Summary`** - `Termination` (one of `steady-state`, `cost-cap`, `max-turn`,
-  `interrupted`, `malformed-output`), `Forks []ForkOutcome`, `Unresolved`,
-  `Headline`, `SessionDir`, `USD`, `WallSeconds`.
+  `interrupted`, `malformed-output`), `Forks []ForkOutcome`, `Unresolved`
+  (attacks still open or rebutted at the end: a rebuttal leaves the dispute
+  open), `Headline`, `SessionDir` (always absolute), `USD`, `WallSeconds`.
 - **`TokenUsage`** - `Input`, `Output`, `CacheCreate`, `CacheRead`, with `Total()`.
 
 `AssemblePrompt(in CriticInput) string` combines `SystemPrompt`, `TaskContext`,
@@ -67,10 +70,15 @@ transcript and diff helpers are in [Inputs](025-inputs.md).
 model. Backends call it so every critic sees the same assembled prompt regardless
 of runtime.
 
-`Engine.Run` creates the session directory, runs the forks, and persists the
-terminal artifacts (`summary.md`, `end.json`) under `StateDir/sessions/<id>/`
-before returning; see [Session format](027-session-format.md). The library path
-is silent by default. An embedder that wants progress lines wraps its
+`Engine.Run` needs a `StateDir`, a `Proposer` and a `NewCritic`, and returns an
+error before it writes anything when one is missing. It creates the session
+directory, writes `start.json` and the reviewed diff, runs the forks, and
+persists the terminal artifacts (`summary.md`, `end.json`) under
+`StateDir/sessions/<id>/` before returning; see
+[Session format](027-session-format.md). A write that fails is an error, and so
+is a nil result from a `Proposer` or `Critic`, or a nil `Critic` from the
+factory. Any error returns a nil `Summary`. The library path is silent by
+default. An embedder that wants progress lines wraps its
 `Proposer`/`Critic`.
 
 ## The Verifier seam

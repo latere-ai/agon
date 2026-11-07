@@ -23,21 +23,21 @@ debate whose only human-facing output is the set of unresolved disputes.
 
 ## The fork/debate model
 
-```
-                  the coding agent's session (the "root")
-                            |
-                            |  fork per critic (root transcript untouched)
-                 +----------+----------+
-                v          v           v
-            fork-1      fork-2  ...  fork-N
-          proposer <==> critic       ...
-            clone    rounds
-                |
-                v  round files + ledger written to disk
-     <StateDir>/sessions/<id>/forks/critic-i/rounds/r{1,2,...}-{critic,proposer}.md
-                            |
-                            v
-                     summary.md  (contention-scored headline + open leaves)
+```mermaid
+flowchart TD
+    root["The coding agent's session (the root)"]
+    root -->|"forked once per critic; the root is never written"| f1 & f2 & fn
+    subgraph f1 ["fork 1"]
+        p1["proposer (a clone of the root)"] <-->|rounds| c1["critic 1"]
+    end
+    subgraph f2 ["fork 2"]
+        p2["proposer (a clone of the root)"] <-->|rounds| c2["critic 2"]
+    end
+    subgraph fn ["fork N"]
+        pn["proposer (a clone of the root)"] <-->|rounds| cn["critic N"]
+    end
+    f1 & f2 & fn --> files["round files and the attack ledger,<br/>in StateDir/sessions/ID/forks/critic-i/"]
+    files --> summary["summary.md: the headline by contention score, and the open attacks"]
 ```
 
 - Each critic runs in its own fork; the engine never writes into the root session.
@@ -74,18 +74,16 @@ model-call critic stays an opt-in backend and the core stays runtime-agnostic.
 
 Adversarial Review is embedded, not run directly:
 
-- **`latere review`** (latere-cli) is the developer CLI: it forks the real Claude
-  Code session as the proposer and routes critics through Lux on the user's Latere
-  identity.
-- **wallfacer** embeds the engine as its task verifier: the task's Claude Code
-  session is the proposer, and wallfacer's own harnesses run the critics.
+- **`latere agents review`** (latere-cli) is the developer CLI: it forks the real
+  Claude Code session as the proposer and runs the critics through the `critic`
+  package on Latere's models, on the user's Latere identity.
 
 The canonical embedding pattern is in [Engine API](024-engine-api.md).
 
 ## Non-goals
 
 - **Not a standalone binary.** Adversarial Review is imported as a library. The
-  developer CLI lives in latere-cli as `latere review`; this tree ships no
+  developer CLI lives in latere-cli as `latere agents review`; this tree ships no
   installable of its own.
 - **The proposer is not pluggable onto arbitrary runtimes.** It depends on
   `claude --resume <id> --fork-session` to reconstitute the real coding session;

@@ -5,8 +5,7 @@ module `latere.ai/x/agon`. After a coding agent produces a change, it forks the
 session, runs one or more independent critics that attack the diff, lets the
 proposer defend or concede, and surfaces only the disputes that survive. It is
 imported as a library, not run as a standalone tool: the developer CLI is
-`latere agents review` in [latere-cli](https://github.com/latere-ai/latere-cli), and
-the same engine is embedded by wallfacer.
+`latere agents review` in [latere-cli](https://github.com/latere-ai/latere-cli).
 
 These specs are the current-state contracts for the engine and its protocol. They
 describe what the code does today, not a build history. The roadmap at the bottom
@@ -105,8 +104,7 @@ Heavier, architecture-class changes:
 
 ### Multi-agent extensions
 
-Beyond the proposer-versus-critic asymmetry, two protocol shapes are candidates
-(design input imported from wallfacer's oversight work):
+Beyond the proposer-versus-critic asymmetry, two protocol shapes are candidates:
 
 - **N-agent debate.** A generalized multi-round deliberation (opening, rebuttal,
   closing, convergence detection) with configurable turn order and a lightweight

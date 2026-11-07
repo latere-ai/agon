@@ -2,7 +2,7 @@
 title: Debate protocol
 status: complete
 track: adversarial
-updated: 2026-09-28
+updated: 2026-11-07
 author: changkun
 ---
 
@@ -21,7 +21,9 @@ who produces the text, never the protocol. Implemented across
 Each critic runs in its own **fork**. Within a fork, rounds alternate:
 
 - **Odd rounds are the critic.** It attacks the diff.
-- **Even rounds are the proposer.** It defends, concedes, or fixes.
+- **Even rounds are the proposer.** It defends, concedes, or fixes. The
+  mediator's message names the critic's round file by absolute path, because
+  the proposer runs in the reviewed repository, not in the session directory.
 
 One user-facing **turn** is a critic message plus a proposer reply, so it is two
 internal rounds. Callers set the round cap as `2 x turns`. Forks run serially;
@@ -76,6 +78,11 @@ beginning:
 - `push-back c<i>-<seq>` - the proposer partially disputes or asks for
   specificity.
 
+A defense counts only for an attack that this fork's critic raised. A `concede`
+or `rebut` of any other id is ignored and recorded nowhere. The mediator does
+not check that a conceded attack was fixed: the concession is the proposer's
+word, with the files it changed attached.
+
 The critic then dispositions each of its own prior attacks by reusing the same ID
 with a header marker:
 
@@ -87,7 +94,8 @@ with a header marker:
 
 New flaws found later use a new ID, one past the highest sequence used in the
 fork. Reusing an old ID for a new claim is a protocol violation; the mediator
-renames it and the ledger connection is lost.
+renames it and the ledger connection is lost. An ID part above 1,000,000 is
+renamed the same way, so a sequence never overflows.
 
 ## The attack ledger
 
@@ -103,7 +111,10 @@ location, `round_introduced`, `round_last_touched`, `rounds_survived`,
 - `withdrawn` - the critic dropped it after the defense.
 - `unresolved` - still `open` or `rebutted` when the run ended.
 
-Bodies larger than 64 KiB spill to files; the ledger keeps a path reference.
+When the claim, expected violation, reproduction and location of a record
+together pass 64 KiB, they spill to a file under the fork's `attacks/` folder
+and the ledger keeps a path reference. Reading the ledger loads them back, so
+a spilled claim can still be the headline.
 
 ## Termination
 
@@ -114,8 +125,12 @@ A fork or run stops on the first of:
 - **max-turn** - a fork reaches its round cap with nothing else firing.
 - **cost-cap** - the soft token budget across forks is exceeded; the whole run
   stops.
-- **malformed-output** - two consecutive critic rounds are unparseable.
-- **interrupted** - the context is cancelled (SIGINT/SIGTERM). Finalize still
+- **malformed-output** - two consecutive critic rounds are malformed. A round
+  is malformed when the reply has no `# Critic <i> - round <n> attacks` header,
+  or when the mediator drops every section it has. A reply with no header is
+  kept verbatim as the round file. One malformed round lets the debate go on.
+- **interrupted** - the context is canceled. The library installs no signal
+  handler; a CLI cancels the context on SIGINT or SIGTERM. Finalize still
   runs so completed rounds persist. Per-call deadlines live in a child context so
   a genuine model timeout is not misread as an interrupt.
 
