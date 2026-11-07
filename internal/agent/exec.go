@@ -26,6 +26,22 @@ import (
 // (a smaller cap there would reject a line the other two accepted).
 const maxScanLine = 8 * 1024 * 1024
 
+// MaxOutputBytes is the most a claude or codex process may write to
+// stdout in one call: 64 MiB. A call past it is stopped and refused with
+// ErrOutputTooLarge. The default JSON output is one result object of a few
+// kilobytes; the verbose event stream carries every tool result, and the
+// largest of about 16,000 Claude Code turns measured was 30.5 MB.
+const MaxOutputBytes = 64 << 20
+
+// ErrOutputTooLarge is returned when a process writes more than
+// MaxOutputBytes to stdout.
+var ErrOutputTooLarge = fmt.Errorf("the agent wrote more than %d MiB to stdout", MaxOutputBytes>>20)
+
+// maxStderrTail is how much of a process's stderr Exec keeps: the last
+// 64 KiB. Stderr only goes into error messages, and its end says why the
+// process failed.
+const maxStderrTail = 64 << 10
+
 // Run is one subprocess invocation.
 //
 // When OnStdoutLine is non-nil, Exec switches to a streaming pipe:
@@ -78,7 +94,11 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 		defer cancel()
 	}
 
-	cmd := exec.CommandContext(callCtx, bin, r.Args...)
+	// runCtx also ends when stdout passes MaxOutputBytes. Killed reports
+	// only callCtx, so a refused output is not mistaken for a timeout.
+	runCtx, stopRun := context.WithCancel(callCtx)
+	defer stopRun()
+	cmd := exec.CommandContext(runCtx, bin, r.Args...)
 	cmd.Dir = r.Cwd
 	cmd.Env = r.Env
 	// With no Stdin, os/exec connects /dev/null, so an agent CLI that probes
@@ -86,8 +106,8 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 	if r.Stdin != "" {
 		cmd.Stdin = strings.NewReader(r.Stdin)
 	}
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
+	stderr := &tailBuffer{limit: maxStderrTail}
+	cmd.Stderr = stderr
 
 	setProcessGroup(cmd)
 	cmd.Cancel = func() error {
@@ -102,14 +122,17 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 	start := time.Now()
 	var stdoutBytes []byte
 	if r.OnStdoutLine == nil {
-		var stdout bytes.Buffer
-		cmd.Stdout = &stdout
+		stdout := &cappedOutput{limit: MaxOutputBytes, over: stopRun}
+		cmd.Stdout = stdout
 		err := cmd.Run()
-		stdoutBytes = stdout.Bytes()
+		stdoutBytes = stdout.buf.Bytes()
 		res := Result{
 			Stdout:   stdoutBytes,
 			Stderr:   stderr.Bytes(),
 			Duration: time.Since(start),
+		}
+		if stdout.hit {
+			return res, ErrOutputTooLarge
 		}
 		if err != nil {
 			if ee, ok := errors.AsType[*exec.ExitError](err); ok {
@@ -135,8 +158,14 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 	var stdoutBuf bytes.Buffer
 	sc := bufio.NewScanner(pipe)
 	sc.Buffer(make([]byte, 0, 64*1024), maxScanLine)
+	tooLarge := false
 	for sc.Scan() {
 		line := sc.Bytes()
+		if stdoutBuf.Len()+len(line)+1 > MaxOutputBytes {
+			tooLarge = true
+			stopRun()
+			break
+		}
 		stdoutBuf.Write(line)
 		stdoutBuf.WriteByte('\n')
 		// The scanner reuses its underlying buffer; copy before
@@ -146,7 +175,7 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 		r.OnStdoutLine(cp)
 	}
 	scErr := sc.Err()
-	if scErr != nil {
+	if tooLarge || scErr != nil {
 		// The scanner stops at a line over maxScanLine while the child may
 		// still be writing. Drain the rest so the child is not blocked on a
 		// full pipe: Wait returns only after the child exits.
@@ -160,6 +189,9 @@ func Exec(ctx context.Context, r Run) (Result, error) {
 		Stdout:   stdoutBytes,
 		Stderr:   stderr.Bytes(),
 		Duration: time.Since(start),
+	}
+	if tooLarge {
+		return res, ErrOutputTooLarge
 	}
 	if waitErr != nil {
 		if ee, ok := errors.AsType[*exec.ExitError](waitErr); ok {
@@ -260,3 +292,41 @@ func sanitizeControls(in []byte) []byte {
 	}
 	return out
 }
+
+// cappedOutput keeps at most limit bytes of stdout. The write that would
+// pass the limit fails, which ends the copy and closes the pipe, and over
+// stops the process. It has no ReadFrom, so io.Copy goes through Write.
+type cappedOutput struct {
+	buf   bytes.Buffer
+	limit int
+	over  func()
+	hit   bool
+}
+
+func (w *cappedOutput) Write(p []byte) (int, error) {
+	if w.buf.Len()+len(p) > w.limit {
+		if !w.hit {
+			w.hit = true
+			w.over()
+		}
+		return 0, ErrOutputTooLarge
+	}
+	return w.buf.Write(p)
+}
+
+// tailBuffer keeps the last limit bytes written to it.
+type tailBuffer struct {
+	buf   []byte
+	limit int
+}
+
+func (w *tailBuffer) Write(p []byte) (int, error) {
+	w.buf = append(w.buf, p...)
+	if extra := len(w.buf) - w.limit; extra > 0 {
+		w.buf = append(w.buf[:0], w.buf[extra:]...)
+	}
+	return len(p), nil
+}
+
+// Bytes returns what the buffer holds.
+func (w *tailBuffer) Bytes() []byte { return w.buf }
