@@ -29,7 +29,10 @@ each property.
 | A critic cannot hide an attack by making it large. A record over 64 KiB moves to its own file and is read back, so it stays in the summary. | `agon.TestHugeLocationKeepsAttackUnresolved`, `agon.TestSpilledClaimIsTheHeadline`, `ledger.TestAggregateReportsOversizedLine` |
 | A proposer can only answer the attacks of its own fork. A `concede` or `rebut` of an id that its critic did not raise changes nothing. | `round.TestDefenseForUnknownIDIsIgnored`, `round.TestDefenseForOtherForkIsIgnored` |
 | Each piece of model text in `summary.md`, such as a claim, an aspect or a location, is one line of at most 200 characters, so it cannot add list items or headings. | `summary.TestOneLine`, `summary.TestOneLineCollapsesEveryWhitespace`, `summary.TestLeafBoundsAspectAndLocation` |
-| The `claude -p` critic cannot run commands or edit files: Bash, Write, Edit, MultiEdit and NotebookEdit are denied. `claude.WithProposerReadOnly` denies the same tools to the proposer. | `agent.TestClaudeCriticDisallowsMutatingTools`, `claude.TestWithProposerReadOnly`, `agent.TestClaudeProposer_ToolArgs` |
+| The `claude -p` critic can only read your working tree. Its only tools are Read, Grep and Glob, it loads no MCP server, and Bash, Write, Edit, MultiEdit, NotebookEdit, WebFetch and WebSearch are denied. Your Claude Code settings, a project or a plugin cannot add a tool back: the tool set and the MCP servers are fixed on the command line. | `agent.TestClaudeCriticHasNoWebOrMCPTools`, `agent.TestClaudeCriticDisallowsMutatingTools` |
+| `claude.WithProposerReadOnly` denies Bash, Write, Edit, MultiEdit and NotebookEdit to the proposer. | `claude.TestWithProposerReadOnly`, `agent.TestClaudeProposer_ToolArgs` |
+| A diff over 4 MiB (`input.MaxDiffBytes`) is refused, by `input.Compute` while it reads `git` and by `Engine.Run` before anything is written, so no critic gets it. | `input.TestComputeRefusesADiffOverTheCap`, `agon.TestRunRefusesADiffOverTheCap` |
+| A `claude` process that writes more than 64 MiB to stdout (`MaxOutputBytes`) is stopped, and the call fails. Only the last 64 KiB of its stderr are kept. | `agent.TestExecRefusesOutputOverTheCap`, `agent.TestExecKeepsTheTailOfStderr` |
 | The model-call critic sends one request with no tools. | `critic.TestRoundSendsOneToolFreeTurn` |
 | Canceling the context stops a `claude` process. | `agent.TestExecCancellation` |
 | A run whose `summary.md` or `end.json` cannot be written returns an error, never a result for a session that looks unfinished on disk. | `agon.TestPersistFailureIsReturned` |
@@ -49,11 +52,9 @@ Each test is named as `package.Test`. `agent`, `ledger`, `round` and
 - **The proposer's tools.** `claude.NewProposer` runs a full Claude Code
   session in your working tree, with your tools and permissions. Without
   `claude.WithProposerReadOnly` it can edit files and run commands.
-- **The `claude -p` critic's other tools.** The critic runs in your
-  working tree. Tools other than the five denied ones, such as Read,
-  WebFetch, WebSearch and MCP tools, follow your Claude Code settings. If
-  those settings allow them, a critic steered by a diff can read files
-  and send them out.
+- **What the critic reads.** The `claude -p` critic can read any file in
+  your working tree, and what it reads goes to the model. It cannot send
+  a file anywhere else.
 - **Concessions.** agon does not check that a conceded attack was fixed.
   A concession is the proposer's word, with the files it changed
   attached.
@@ -70,8 +71,8 @@ Each test is named as `package.Test`. `agent`, `ledger`, `round` and
   repository's own configuration, so a configured external diff or
   textconv driver runs. Do not compute a diff in a checkout you do not
   trust.
-- **Size and time.** The diff, the task text and the output of a
-  `claude` process have no size limit. The token budget is soft: it is
+- **Size and time.** The task text has no size limit, and the model-call
+  critic reads its model's reply without one. The token budget is soft: it is
   checked before each round, a call in flight finishes, and it counts the
   tokens each backend reports. There is no limit on total time. An error
   or a timeout of one call ends the whole run.

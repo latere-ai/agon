@@ -48,8 +48,16 @@ directory is the reviewed repository, not the session directory.
   round, usable as a critic for any task harness. The prompt, which carries the
   whole diff, goes on the child's standard input, so its size is not bound by
   the operating system's argument limits. The critic runs in the engine's `Cwd`
-  with Bash, Write, Edit, MultiEdit and NotebookEdit denied. Other tools, such as
-  Read, Grep, web and MCP tools, are left to the user's Claude Code settings.
+  with `--tools Read,Grep,Glob`, so it has no other built-in tool, and with
+  `--strict-mcp-config` and no `--mcp-config`, so it loads no MCP server. Bash,
+  Write, Edit, MultiEdit, NotebookEdit, WebFetch and WebSearch are denied as
+  well. A diff can steer the critic, and these flags keep it from changing the
+  tree or reaching the network, whatever the user's settings, a project or a
+  plugin configure.
+- Each subprocess call keeps at most `MaxOutputBytes` (64 MiB) of stdout; a
+  process that writes more is stopped and the call fails with
+  `ErrOutputTooLarge`. Only the last 64 KiB of stderr are kept, for the error
+  message.
 - `internal/agent`'s `CodexCritic` runs `codex exec --sandbox
   read-only --json`. Its read-only sandbox lets it open files the diff does not
   touch, which the prompt-only critics cannot. It is internal: no public package

@@ -26,6 +26,13 @@ that it sorts above them and `@latest` resolves to it.
 
 ### Changed
 
+- **A diff over 4 MiB is refused.** `input.Compute` and `Engine.Run`
+  return an error wrapping `input.ErrDiffTooLarge`, from the constant
+  `input.MaxDiffBytes`. Every critic round sends the whole diff, and 4 MiB
+  is about the most a model context of a million tokens holds.
+- **A `claude` call that writes more than 64 MiB to stdout fails.** The
+  process is stopped. Only the last 64 KiB of its stderr are kept for the
+  error message.
 - **`Engine.Run` returns an error when it cannot write the session.** A
   failed write of `summary.md`, `end.json`, the attack ledger or the
   transcript used to be ignored, and the run returned a summary for a
@@ -79,6 +86,12 @@ that it sorts above them and `@latest` resolves to it.
 
 ### Security
 
+- **The `claude -p` critic cannot reach the network.** Its only tools are
+  Read, Grep and Glob, it loads no MCP server, and WebFetch and WebSearch
+  are denied with the tools that change files or run commands. Before, a
+  critic steered by a diff could use any web or MCP tool that the user's
+  Claude Code settings allowed. Settings, a project or a plugin cannot add
+  a tool back.
 - **A session id cannot leave the projects folder or act as an option.**
   `input.LocateTranscript` and `input.FindSession` put the id into a path
   unchecked, so `../../x` read a file outside `~/.claude/projects`, and

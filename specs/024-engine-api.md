@@ -71,7 +71,8 @@ model. Backends call it so every critic sees the same assembled prompt regardles
 of runtime.
 
 `Engine.Run` needs a `StateDir`, a `Proposer` and a `NewCritic`, and returns an
-error before it writes anything when one is missing. It creates the session
+error before it writes anything when one is missing, or when `DiffPatch` is over
+`input.MaxDiffBytes` (the error wraps `input.ErrDiffTooLarge`). It creates the session
 directory, writes `start.json` and the reviewed diff, runs the forks, and
 persists the terminal artifacts (`summary.md`, `end.json`) under
 `StateDir/sessions/<id>/` before returning; see

@@ -51,6 +51,10 @@ that selection itself.
   starts with `-`, and passes them to git after `--end-of-options`, which needs
   git 2.24 or newer. Untracked names are read NUL-separated (`ls-files -z`), so a
   name with non-ASCII bytes, quotes or a newline is diffed like any other.
+- `Compute` refuses a diff over `MaxDiffBytes` (4 MiB) with `ErrDiffTooLarge`,
+  and stops git as soon as its output passes the cap. Every critic round sends
+  the whole diff in one prompt, and 4 MiB is about the most a model context of
+  a million tokens holds.
 - `Compute` runs git with the repository's own configuration, so a configured
   external diff or textconv driver runs. Do not compute a diff in a checkout you
   do not trust.
